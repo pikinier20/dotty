@@ -22,6 +22,7 @@ import org.jetbrains.dokka.pages._
 import dotty.dokka.model.api._
 import org.jetbrains.dokka.CoreExtensions
 import org.jetbrains.dokka.base.DokkaBase
+import org.jetbrains.dokka.base.resolvers.shared._
 
 import dotty.dokka.site.SitePagesCreator
 import dotty.dokka.site.StaticSiteContext
@@ -70,6 +71,7 @@ class DottyDokkaPlugin extends DokkaJavaPlugin:
   val scalaResourceInstaller = extend(
     _.extensionPoint(dokkaBase.getHtmlPreprocessors)
       .fromRecipe(ctx => new ScalaResourceInstaller(ctx.args))
+      .name("scalaResourceInstaller")
       .after(dokkaBase.getCustomResourceInstaller)
   )
 
@@ -166,6 +168,21 @@ class DottyDokkaPlugin extends DokkaJavaPlugin:
     _.extensionPoint(dokkaBase.getLocationProviderFactory)
       .fromRecipe(StaticSiteLocationProviderFactory(_))
       .overrideExtension(dokkaBase.getLocationProvider)
+  )
+
+  val scalaPackageListCreator = extend(
+    _.extensionPoint(dokkaBase.getHtmlPreprocessors)
+      .fromRecipe(c => ScalaPackageListCreator(c, RecognizedLinkFormat.DokkaHtml))
+      .overrideExtension(dokkaBase.getPackageListCreator)
+      .after(
+        customDocumentationProvider.getValue
+      )
+  )
+
+  val scalaExternalLocationProviderFactory = extend(
+    _.extensionPoint(dokkaBase.getExternalLocationProviderFactory)
+      .fromRecipe(c => ScalaExternalLocationProviderFactory(c))
+      .overrideExtension(dokkaBase.getDokkaLocationProvider)
   )
 
 extension (ctx: DokkaContext):

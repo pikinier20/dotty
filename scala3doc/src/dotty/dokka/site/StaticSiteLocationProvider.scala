@@ -8,10 +8,23 @@ import org.jetbrains.dokka.pages.ContentPage
 import org.jetbrains.dokka.pages.PageNode
 import org.jetbrains.dokka.pages.RootPageNode
 import org.jetbrains.dokka.plugability.DokkaContext
+import org.jetbrains.dokka.base.resolvers.external._
 
 import scala.collection.JavaConverters._
 import java.nio.file.Paths
 import java.nio.file.Path
+
+import org.jetbrains.dokka.base.resolvers.local._
+import org.jetbrains.dokka.base.DokkaBase
+import org.jetbrains.dokka.base.resolvers.external._
+import org.jetbrains.dokka.base.resolvers.shared._
+import org.jetbrains.dokka.base.resolvers.anchors._
+import org.jetbrains.dokka.links.DRI
+import org.jetbrains.dokka.model.DisplaySourceSet
+import org.jetbrains.dokka.pages.RootPageNode
+import org.jetbrains.dokka.plugability._
+import collection.JavaConverters._
+import java.util.{Set => JSet}
 
 class StaticSiteLocationProviderFactory(private val ctx: DokkaContext) extends LocationProviderFactory:
   override def getLocationProvider(pageNode: RootPageNode): LocationProvider =
@@ -73,3 +86,42 @@ class StaticSiteLocationProvider(ctx: DokkaContext, pageNode: RootPageNode)
           case l if l.isEmpty => Seq("index")
           case l => l
       (contextPath ++ nodePath).mkString("/")
+
+    val externalLocationProviders: Map[ExternalDocumentation, ExternalLocationProvider] = ctx
+      .getConfiguration
+      .getSourceSets
+      .asScala
+      .flatMap { sourceSet =>
+        sourceSet.getExternalDocumentationLinks.asScala.map { link =>
+          ExternalDocumentation(
+            link.getUrl,
+            PackageList.Companion.load(link.getPackageListUrl, sourceSet.getJdkVersion, ctx.getConfiguration.getOfflineMode)
+          )
+        }
+      }
+      .map { extDoc =>
+        val externalLocationProvider = this.getExternalLocationProviderFactories.asScala
+          .map(_.getExternalLocationProvider(extDoc)).filter(_ != null).head
+        extDoc -> externalLocationProvider
+      }.toList.toMap
+
+    val packagesIndex: Map[String, ExternalLocationProvider] = externalLocationProviders
+      .toList
+      .flatMap { (extDoc, locationProvider) =>
+        extDoc.getPackageList.getPackages.asScala.map(_ -> locationProvider)
+      }.toMap
+
+    val locationsIndex: Map[String, ExternalLocationProvider] = externalLocationProviders
+      .toList
+      .flatMap { (extDoc, locationProvider) =>
+        extDoc.getPackageList.getLocations.asScala.toMap.keys.map(_ -> locationProvider)
+      }.toMap
+
+
+    override def getExternalLocation(dri: DRI, sourceSets: JSet[DisplaySourceSet]): String =
+      val res = packagesIndex.get(dri.getPackageName).fold(
+        locationsIndex.get(dri.toString).fold(
+          externalLocationProviders.values.map(lp => Option(lp.resolve(dri))).flatten.headOption.getOrElse(null)
+        )(_.resolve(dri))
+      )(_.resolve(dri))
+      res

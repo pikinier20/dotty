@@ -5,6 +5,8 @@ import org.jetbrains.dokka.DokkaSourceSetImpl
 import java.io.File
 import collection.JavaConverters._
 import dotty.dokka.site.StaticSiteContext
+import org.jetbrains.dokka.ConfigurationKt._
+import java.net.URL
 
 case class DottyDokkaConfig(docConfiguration: DocConfiguration) extends DokkaConfiguration:
   override def getOutputDir: File = docConfiguration.args.output
@@ -44,7 +46,9 @@ case class DottyDokkaConfig(docConfiguration: DocConfiguration) extends DokkaCon
       /*jdkVersion=*/ 8,
       /*sourceLinks=*/ JSet(),
       /*perPackageOptions=*/ JList(),
-      /*externalDocumentationLinks=*/ JSet(),
+      /*externalDocumentationLinks=*/ JSet(
+         //ExternalDocumentationLink(new URL("http://127.0.0.1:5500/scala3doc/output/scala3/"), new URL("http://127.0.0.1:5500/scala3doc/output/scala3/-scala%203/package-list"))
+        ),
       /*languageVersion=*/ null,
       /*apiVersion=*/ null,
       /*noStdlibLink=*/ true,
