@@ -18,8 +18,4 @@ class ScalaExternalLocationProvider(
   extension: String,
   ctx: DokkaContext
 ) extends DefaultExternalLocationProvider(externalDocumentation, extension, ctx):
-  override def resolve(dri: DRI): String =
-    externalDocumentation.getPackageList.getLocations.asScala.toMap.get(dri.toString)
-      .fold(super.resolve(dri))( l => {
-        this.getDocURL + l
-      })
+  override def resolve(dri: DRI): String = super.resolve(dri)

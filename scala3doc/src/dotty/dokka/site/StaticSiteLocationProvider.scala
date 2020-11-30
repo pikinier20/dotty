@@ -92,8 +92,17 @@ class StaticSiteLocationProvider(ctx: DokkaContext, pageNode: RootPageNode)
       .getSourceSets
       .asScala
       .flatMap { sourceSet =>
-        sourceSet.getExternalDocumentationLinks.asScala.map { link =>
-          ExternalDocumentation(
+        sourceSet.getExternalDocumentationLinks.asScala.map {
+          case link: ScaladocExternalDocumentationLink => ExternalDocumentation(
+            link.url,
+            new PackageList(
+              RecognizedLinkFormat.Javadoc8,
+              link.packages.toSet.asJava,
+              Map.empty.asJava,
+              null
+            )
+          )
+          case link => ExternalDocumentation(
             link.getUrl,
             PackageList.Companion.load(link.getPackageListUrl, sourceSet.getJdkVersion, ctx.getConfiguration.getOfflineMode)
           )

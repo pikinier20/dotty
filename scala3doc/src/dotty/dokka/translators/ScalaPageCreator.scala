@@ -43,6 +43,8 @@ class ScalaPageCreator(
     p.allMembers.filter(_.origin == Origin.DefinedWithin).collect {
       case f: DFunction => updatePageNameForMember(pageForFunction(f), f)
       case c: DClass => updatePageNameForMember(pageForDClass(c), c)
+      case p: DProperty if p.kind.isInstanceOf[Kind.Type] => updatePageNameForMember(pageForProperty(p), p)
+      //Currently only types because of dri conflict for all properties
     }
 
   override def pageForPackage(p: DPackage): PackagePageNode =
@@ -316,7 +318,7 @@ class ScalaPageCreator(
           }
 
           val withExtensionInformation = d.kind match {
-            case Kind.Extension(on) => 
+            case Kind.Extension(on) =>
               val sourceSets = d.getSourceSets.asScala.toSet
               withCompanion.cell(sourceSets = sourceSets)(_.text("Extension"))
                 .cell(sourceSets = sourceSets)(_.text(s"This function is an extension on (${on.name}: ").inlineSignature(d, on.signature).text(")"))

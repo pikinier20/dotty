@@ -5,7 +5,6 @@ import org.jetbrains.dokka.DokkaSourceSetImpl
 import java.io.File
 import collection.JavaConverters._
 import dotty.dokka.site.StaticSiteContext
-import org.jetbrains.dokka.ConfigurationKt._
 import java.net.URL
 
 case class DottyDokkaConfig(docConfiguration: DocConfiguration) extends DokkaConfiguration:
@@ -47,7 +46,18 @@ case class DottyDokkaConfig(docConfiguration: DocConfiguration) extends DokkaCon
       /*sourceLinks=*/ JSet(),
       /*perPackageOptions=*/ JList(),
       /*externalDocumentationLinks=*/ JSet(
-         //ExternalDocumentationLink(new URL("http://127.0.0.1:5500/scala3doc/output/scala3/"), new URL("http://127.0.0.1:5500/scala3doc/output/scala3/-scala%203/package-list"))
+          // ExternalDocumentationLink.scaladoc(
+          //   "https://www.scala-lang.org/api/2.13.4/",
+          //   List("scala")
+          // ),
+          // ExternalDocumentationLink(
+          //   "http://127.0.0.1:5500/scala3doc/output/scala3/",
+          //   Some("http://127.0.0.1:5500/scala3doc/output/scala3/-scala%203/package-list")
+          // ),
+          // ExternalDocumentationLink(
+          //   "https://docs.oracle.com/javase/8/docs/api/",
+          //   None
+          // )
         ),
       /*languageVersion=*/ null,
       /*apiVersion=*/ null,

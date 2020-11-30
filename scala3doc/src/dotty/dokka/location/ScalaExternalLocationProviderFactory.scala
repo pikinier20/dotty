@@ -14,5 +14,13 @@ import java.util.{Set => JSet}
 
 class ScalaExternalLocationProviderFactory(ctx: DokkaContext) extends ExternalLocationProviderFactory:
   override def getExternalLocationProvider(doc: ExternalDocumentation): ExternalLocationProvider =
-    if doc.getPackageList.getLinkFormat == RecognizedLinkFormat.DokkaHtml then ScalaExternalLocationProvider(doc, ".html",ctx)
-    else ???
+    val format = doc.getPackageList.getLinkFormat
+    if (
+      format == RecognizedLinkFormat.DokkaHtml ||
+      format == RecognizedLinkFormat.Javadoc1 ||
+      format == RecognizedLinkFormat.Javadoc8 ||
+      format == RecognizedLinkFormat.Javadoc10
+    )
+      ScalaExternalLocationProvider(doc, ".html",ctx)
+    else
+      ???
