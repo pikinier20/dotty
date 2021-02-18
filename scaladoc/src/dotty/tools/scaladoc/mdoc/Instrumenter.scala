@@ -11,9 +11,6 @@ import dotty.tools.dotc.ast.Trees
 import dotty.tools.dotc.core.Flags
 
 import scala.collection.mutable
-// import mdoc.Reporter
-// import mdoc.internal.cli.InputFile
-// import mdoc.internal.cli.Settings
 
 import Instrumenter.position
 
@@ -21,29 +18,19 @@ import Instrumenter.position
  * we should only make sure that the other Instrumenter generates code with proper indentation
  * */
 class Instrumenter(
-    file: Input,
     sections: List[SectionInput],
-    // settings: Settings,
-    reporter: MdocReporter
+    reporter: MdocReporter,
+    origin: String
 ) {
   private val innerClassIdent = " " * 4
   def instrument(): Instrumented = {
     printAsScript()
     Instrumented.fromSource(
       out.toString,
-      // magic.scalacOptions.toList,
-      // magic.dependencies.toList,
-      // magic.repositories.toList,
-      // Nil,
       reporter
     )
   }
 
-  val magic = new MagicImports(
-    // settings,
-    // reporter,
-    file
-  )
   private val out = new ByteArrayOutputStream()
   private val sb = new PrintStream(out)
   val gensym = new Gensym()
@@ -93,7 +80,6 @@ class Instrumenter(
         List(fresh -> stat.sourcePos)
     }
     stat match {
-      case magic.NonPrintable() =>
       case _ =>
         printWithIndent(section.show(stat, innerClassIdent.size))
     }
@@ -115,16 +101,14 @@ object Instrumenter {
     "$ivy"
   )
   def instrument(
-      file: Input,
       sections: List[SectionInput],
-      // settings: Settings,
-      reporter: MdocReporter
+      reporter: MdocReporter,
+      origin: String
   ): Instrumented = {
     val instrumented = new Instrumenter(
-      file,
       sections,
-      // settings,
-      reporter
+      reporter,
+      origin
     ).instrument()
     instrumented.copy(source = wrapBody(instrumented.source))
   }

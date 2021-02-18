@@ -5,18 +5,14 @@ import dotty.tools.dotc.parsing.Parsers.Parser
 import dotty.tools.dotc.util.SourceFile
 import dotty.tools.dotc.util.ScriptSourceFile
 
-// import mdoc.internal.cli.{Context => MContext}
 import dotty.tools.dotc.ast.untpd._
-// import mdoc.internal.pos.TokenEditDistance
-// import mdoc.internal.BuildInfo
 import dotty.tools.dotc.interactive.InteractiveDriver
 
 /* The class uses Scala 3 parser.
  * Can be removed once the project is updated to use scalameta parser for Scala 3*/
 case class SectionInput(
-  input : Input,
+  input : String,
   mod : Modifier,
-  // context : MContext
 ) {
 
   private val driver = new InteractiveDriver(
@@ -28,7 +24,7 @@ case class SectionInput(
   private val wrapIdent = " " * 2
   private val sourceCode =
       s"""|object OUTER{
-          |$wrapIdent${input.content.replace("\n", "\n"+ wrapIdent)}
+          |$wrapIdent${input.replace("\n", "\n"+ wrapIdent)}
           |}
           |""".stripMargin
   private val filename = "Section.scala"
@@ -69,18 +65,12 @@ object SectionInput {
   val startLine = 1
   val startIdent = 2
 
-  // def tokenEdit(sections: List[SectionInput], instrumented: Input): TokenEditDistance = {
-  //   TokenEditDistance.fromInputs(sections.map(_.input), instrumented)
-  // }
-
   def apply(
-    input : Input,
-    // context : MContext
+    input : String,
   ): SectionInput = {
     SectionInput(
       input,
       Modifier.Default(),
-      // context
     )
   }
 }

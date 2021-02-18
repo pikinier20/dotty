@@ -3,10 +3,10 @@ package dotty.tools.scaladoc.mdoc
 import dotty.tools.scaladoc.{ DocContext, report, compilerContext }
 import dotty.tools.dotc.core.Contexts._
 
-class MdocReporter(using DocContext) {
+class MdocReporter(name: String)(using DocContext) {
   import dotty.tools.scaladoc.compilerContext
 
-  private def mdocMessage(msg: String) = s"MDoc: $msg"
+  private def mdocMessage(msg: String) = s"MDoc: At $name:\n$msg"
 
   def error(line: Int, m: String): Unit =
     report.error(mdocMessage(s"At line: $line. $m"))

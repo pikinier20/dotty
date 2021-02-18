@@ -8,12 +8,17 @@ class BasicMdocTest extends ScaladocTest("objectSignatures"):
   override def runTest: Unit = afterRendering {
       val input = Input(
         "test",
-        "1+1\n"+"2+2\n"+"case class B(val a: String)\n"+"val a = BB(\"asd\")\n"+"println(a.a)\n"
+        """
+        |1+1
+        |2+2
+        |case class B(val a: String)
+        |val a = BB("asd")
+        |println(a.a)
+        """.stripMargin
       )
       val rendered = Renderer.render(
-        input,
+        // input,
         List(input),
-        MarkdownBuilder.default(),
         "test",
         ReplVariablePrinter
       )

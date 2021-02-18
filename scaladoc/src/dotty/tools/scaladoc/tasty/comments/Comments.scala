@@ -4,7 +4,7 @@ package tasty.comments
 import scala.collection.immutable.SortedMap
 import scala.util.Try
 
-import com.vladsch.flexmark.util.{ast => mdu}
+import com.vladsch.flexmark.util.{ast => mdu, sequence => mds}
 import com.vladsch.flexmark.{ast => mda}
 import com.vladsch.flexmark.formatter.Formatter
 import com.vladsch.flexmark.util.options.MutableDataSet
@@ -13,6 +13,7 @@ import scala.quoted._
 import dotty.tools.scaladoc.tasty.comments.wiki.Paragraph
 import dotty.tools.scaladoc.DocPart
 import dotty.tools.scaladoc.tasty.SymOps
+import dotty.tools.scaladoc.mdoc.{ Renderer => MdocRenderer, Input, ReplVariablePrinter }
 import collection.JavaConverters._
 
 class Repr(val qctx: Quotes)(val sym: qctx.reflect.Symbol)
@@ -76,6 +77,7 @@ abstract class MarkupConversion[T](val repr: Repr)(using DocContext) {
   protected def markupToDokkaCommentBody(t: T): DokkaCommentBody
   protected def filterEmpty(xs: List[String]): List[T]
   protected def filterEmpty(xs: SortedMap[String, String]): SortedMap[String, T]
+  protected def processWithMdoc(t: T): T
 
   val qctx: repr.qctx.type = if repr == null then null else repr.qctx // TODO why we do need null?
   val owner: qctx.reflect.Symbol =
@@ -117,7 +119,7 @@ abstract class MarkupConversion[T](val repr: Repr)(using DocContext) {
     }
 
   final def parse(preparsed: PreparsedComment): Comment =
-    val body = markupToDokkaCommentBody(stringToMarkup(preparsed.body))
+    val body = markupToDokkaCommentBody(processWithMdoc(stringToMarkup(preparsed.body)))
     Comment(
       body                    = body.body,
       short                   = body.summary,
@@ -148,6 +150,21 @@ class MarkdownCommentParser(repr: Repr)(using DocContext)
   def stringToMarkup(str: String) =
     MarkdownParser.parseToMarkdown(str, markdown.DocFlexmarkParser(resolveLink))
 
+  def processWithMdoc(d: mdu.Node): mdu.Node = {
+    d.getChildren().asScala.map {
+      case code: mda.Code => code.setText(
+        mds.BasedSequenceImpl.of(
+          MdocRenderer.render(
+            code.getText.unescape(),
+            repr.sym.fullName,
+            ReplVariablePrinter
+          )
+        )
+      )
+    }
+    d
+  }
+
   def markupToString(t: mdu.Node): String = t.toString()
 
   def markupToDokka(md: mdu.Node): DocPart = md
@@ -175,6 +192,19 @@ class WikiCommentParser(repr: Repr)(using DocContext)
 
   def stringToMarkup(str: String) = wiki.Parser(str, resolverLink).document()
 
+  def processWithMdoc(body: wiki.Body): wiki.Body = {
+    body.mapBlocksTree {
+      case c: wiki.Code => wiki.Code(
+        MdocRenderer.render(
+          c.data,
+          owner.dri.location,
+          ReplVariablePrinter
+        )
+      )
+      case other => other
+    }
+  }
+
   def resolverLink(queryStr: String, bodyOpt: Option[wiki.Inline]): wiki.Inline =
     val link = resolveLink(queryStr)
     wiki.Link(link, bodyOpt)
@@ -200,7 +230,7 @@ class WikiCommentParser(repr: Repr)(using DocContext)
     case wiki.Code(text) => text
     case wiki.UnorderedList(elems) => elems.headOption.fold("")(flatten)
     case wiki.OrderedList(elems, _) => elems.headOption.fold("")(flatten)
-    case wiki.DefinitionList(items) => items.headOption.fold("")(e => flatten(e._1))
+    //case wiki.DefinitionList(items) => items.headOption.fold("")(e => flatten(e._1))
     case wiki.HorizontalRule => ""
 
   def markupToString(str: wiki.Body) = str.blocks.headOption.fold("")(flatten)
