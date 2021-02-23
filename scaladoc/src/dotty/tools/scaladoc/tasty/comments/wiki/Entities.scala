@@ -8,6 +8,7 @@ import scala.collection.{Seq => _, _}
   * at least one block. Inside every body is exactly one summary (see
   * [[scala.tools.nsc.doc.model.comment.Summary]]). */
 final case class Body(blocks: Seq[Block]) {
+  def mapBlocksTree(fn: (Block) => Block) = copy(blocks = blocks.map(fn))
 
   /** The summary text of the comment body. */
   lazy val summary: Option[Body] = {
@@ -16,7 +17,7 @@ final case class Body(blocks: Seq[Block]) {
       case Paragraph(text)       => summaryInInline(text)
       case UnorderedList(items)  => items flatMap summaryInBlock
       case OrderedList(items, _) => items flatMap summaryInBlock
-      case DefinitionList(items) => items.values.toSeq flatMap summaryInBlock
+      //case DefinitionList(items) => items.values.toSeq flatMap summaryInBlock
       case _                     => Nil
     }
     def summaryInInline(text: Inline): Seq[Inline] = text match {
@@ -38,17 +39,33 @@ final case class Body(blocks: Seq[Block]) {
   }
 }
 
-sealed abstract class WikiDocElement
+sealed trait WikiDocElement
 
 /** A block-level element of text, such as a paragraph or code block. */
-sealed abstract class Block extends WikiDocElement
+sealed abstract class Block extends WikiDocElement:
+  def mapBlocksTree(fn: (Block) => Block): Block = fn(this) match {
+    case b: BlockWithItems => b.copy(items = b.items.map(_.mapBlocksTree(fn)))
+    case other => other
+  }
+
+sealed abstract class BlockWithItems extends Block:
+  def copy(items: Seq[Block]): Block
+  def items: Seq[Block] = Nil
 
 final case class Title(text: Inline, level: Int) extends Block
+
 final case class Paragraph(text: Inline) extends Block
+
 final case class Code(data: String) extends Block
-final case class UnorderedList(items: Seq[Block]) extends Block
-final case class OrderedList(items: Seq[Block], style: String) extends Block
-final case class DefinitionList(items: SortedMap[Inline, Block]) extends Block
+
+final case class UnorderedList(override val items: Seq[Block]) extends BlockWithItems
+
+final case class OrderedList(override val items: Seq[Block], style: String) extends BlockWithItems:
+  def copy(items: Seq[Block]) = copy(items = items, style = style)
+
+// Not supported
+//final case class DefinitionList(items: SortedMap[Inline, Block]) extends Block
+
 object HorizontalRule extends Block
 
 /** An section of text inside a block, possibly with formatting. */

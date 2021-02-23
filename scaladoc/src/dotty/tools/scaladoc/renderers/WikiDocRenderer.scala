@@ -64,7 +64,7 @@ class DocRender(signatureRenderer: SignatureRenderer)(using DocContext):
     case Summary(text) => renderElement(text)
     case HtmlTag(content) => raw(content)
 
-    case DefinitionList(items) => notSupported("DefinitionList", raw(""))
+    //case DefinitionList(items) => notSupported("DefinitionList", raw(""))
 
     case link: RepresentationLink =>
       notSupported("Subscript", renderElement(link.title))
