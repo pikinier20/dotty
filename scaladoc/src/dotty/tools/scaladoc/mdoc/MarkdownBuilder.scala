@@ -15,7 +15,7 @@ object MarkdownBuilder {
   def buildDocument(
       compiler: MarkdownCompiler,
       reporter: MdocReporter,
-      sectionInputs: List[SectionInput],
+      sectionInput: SectionInput,
       instrumented: Instrumented,
       filename: String
   ): EvaluatedDocument = {
@@ -25,9 +25,10 @@ object MarkdownBuilder {
       compileInput,
       reporter,
       "repl.MdocSession$",
+      sectionInput.mod
     )
     val doc = compiled match {
-      case Some(cls) =>
+      case Some(cls) if !sectionInput.mod.isCompileOnly =>
         val ctor = cls.getDeclaredConstructor()
         ctor.setAccessible(true)
         val doc = ctor.newInstance().asInstanceOf[DocumentBuilder].$doc
@@ -35,8 +36,7 @@ object MarkdownBuilder {
           doc.build(instrumentedInput)
         } catch {
           case e: DocumentException =>
-            val index = e.sections.length - 1
-            val input = sectionInputs(index).input
+            val input = sectionInput.input
             val pos =
               if (e.pos.isEmpty) {
                 -1
@@ -49,11 +49,11 @@ object MarkdownBuilder {
             reporter.error(e)
             Document.empty(instrumentedInput)
         }
-      case None =>
+      case _ =>
         // An empty document will render as the original markdown
         Document.empty(instrumentedInput)
     }
-    EvaluatedDocument(doc, sectionInputs)
+    EvaluatedDocument(doc, sectionInput)
   }
 
   def fromClasspath(classpath: String, scalacOptions: String): MarkdownCompiler = {

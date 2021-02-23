@@ -31,7 +31,7 @@ sealed abstract class Modifier(val mods: Set[Mod]) {
 }
 object Modifier {
   object Default {
-    def apply(): Modifier = Builtin(Set.empty)
+    def apply(): Modifier = Builtin(Set(CompileOnly))
   }
   object Crash {
     def unapply(m: Modifier): Boolean =

@@ -20,7 +20,7 @@ object Renderer {
     val compiler = MarkdownBuilder.fromClasspath(System.getProperty("java.class.path"), "")
     val sectionInput = SectionInput(code, Modifier.Default())
     val instrumented = Instrumenter.instrument(
-      List(sectionInput),
+      sectionInput,
       reporter,
       origin
     )
@@ -28,15 +28,13 @@ object Renderer {
       MarkdownBuilder.buildDocument(
         compiler,
         reporter,
-        List(sectionInput),
+        sectionInput,
         instrumented,
         origin
       )
-    doc.sections
-      .map(s => s"""
-                   |${Renderer.renderEvaluatedSection(doc, s, reporter, printer, compiler)}
-                    """.stripMargin)
-      .mkString("\n")
+    s"""
+      |${Renderer.renderEvaluatedSection(doc, doc.section, reporter, printer, compiler)}
+      """.stripMargin
 
   }
 

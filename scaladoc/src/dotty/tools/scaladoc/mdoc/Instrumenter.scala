@@ -18,7 +18,7 @@ import Instrumenter.position
  * we should only make sure that the other Instrumenter generates code with proper indentation
  * */
 class Instrumenter(
-    sections: List[SectionInput],
+    section: SectionInput,
     reporter: MdocReporter,
     origin: String
 ) {
@@ -45,8 +45,14 @@ class Instrumenter(
   }
 
   private def printAsScript(): Unit = {
-    sections.zipWithIndex.foreach {
-      case (section, i) =>
+    if section.mod.isCompileOnly then {
+        import section.ctx
+        printlnWithIndent("")
+        section.stats.foreach { stat =>
+          printlnWithIndent(section.show(stat, innerClassIdent.size))
+          printlnWithIndent("")
+        }
+    } else {
         import section.ctx
         printlnWithIndent("")
         printlnWithIndent("$doc.startSection();")
@@ -101,12 +107,12 @@ object Instrumenter {
     "$ivy"
   )
   def instrument(
-      sections: List[SectionInput],
+      section: SectionInput,
       reporter: MdocReporter,
       origin: String
   ): Instrumented = {
     val instrumented = new Instrumenter(
-      sections,
+      section,
       reporter,
       origin
     ).instrument()

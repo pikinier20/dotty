@@ -100,6 +100,7 @@ class MarkdownCompiler(
       input: Input,
       vreporter: MdocReporter,
       className: String,
+      mod: Modifier,
       retry: Int = 0
   ): Option[Class[_]] = {
     reset()
@@ -115,7 +116,7 @@ class MarkdownCompiler(
       vreporter,
       context
     )
-    if (!context.reporter.hasErrors) {
+    if (!context.reporter.hasErrors && !mod.isCompileOnly) {
       val loader = new AbstractFileClassLoader(target, appClassLoader)
       try {
         Some(loader.loadClass(className))
@@ -127,6 +128,7 @@ class MarkdownCompiler(
               input,
               vreporter,
               className,
+              mod,
               retry + 1
             )
           } else {
