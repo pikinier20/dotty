@@ -39,7 +39,8 @@ case class Comment (
   groupNames:              SortedMap[String, DocPart],
   groupPrio:               SortedMap[String, Int],
   /** List of conversions to hide - containing e.g: `scala.Predef.FloatArrayOps` */
-  hideImplicitConversions: List[DocPart]
+  hideImplicitConversions: List[DocPart],
+  snippetCompilerData:     SnippetCompilerData
 )
 
 case class PreparsedComment(
@@ -82,7 +83,7 @@ abstract class MarkupConversion[T](val repr: Repr)(using DocContext) {
     if repr == null then null.asInstanceOf[qctx.reflect.Symbol] else repr.sym
 
   object SymOps extends SymOps[qctx.type](qctx)
-  export SymOps.dri
+  export SymOps._
 
   def resolveLink(queryStr: String): DocLink =
     if SchemeUri.matches(queryStr) then DocLink.ToURL(queryStr)
@@ -116,6 +117,38 @@ abstract class MarkupConversion[T](val repr: Repr)(using DocContext) {
       case _ => None
     }
 
+  private def getSnippetCompilerData(sym: qctx.reflect.Symbol): SnippetCompilerData =
+    val packageName = sym.packageName
+    if !sym.isPackageDef then sym.tree match {
+      case c: qctx.reflect.ClassDef =>
+        import qctx.reflect._
+        import dotty.tools.dotc
+        given dotc.core.Contexts.Context = qctx.asInstanceOf[scala.quoted.runtime.impl.QuotesImpl].ctx
+        val cSym = c.symbol.asInstanceOf[dotc.core.Symbols.ClassSymbol]
+
+        def createTypeConstructor(tpe: dotc.core.Types.Type, topLevel: Boolean = true): String = tpe match {
+            case t @ dotc.core.Types.TypeBounds(upper, lower) => lower match {
+              case l: dotc.core.Types.HKTypeLambda =>
+                (if topLevel then "" else "?") + l.paramInfos.map(p => createTypeConstructor(p, false)).mkString("[",", ","]")
+              case _ => (if topLevel then "" else "_")
+            }
+          }
+        val classType =
+          val ct = cSym.classInfo.selfType.show.replace(".this.",".")
+          Some(ct)
+        val classGenerics = Option.when(
+            !cSym.typeParams.isEmpty
+          )(
+            cSym.typeParams.map(_.typeRef).map(t =>
+              t.show +
+              createTypeConstructor(t.asInstanceOf[dotc.core.Types.TypeRef].underlying)
+            ).mkString("[",", ","]")
+          )
+        SnippetCompilerData(packageName, classType, classGenerics, Nil)
+      case _ => getSnippetCompilerData(sym.maybeOwner)
+    } else SnippetCompilerData(packageName, None, None, Nil)
+
+
   final def parse(preparsed: PreparsedComment): Comment =
     val body = markupToDokkaCommentBody(stringToMarkup(preparsed.body))
     Comment(
@@ -138,7 +171,8 @@ abstract class MarkupConversion[T](val repr: Repr)(using DocContext) {
       groupDesc               = filterEmpty(preparsed.groupDesc).view.mapValues(markupToDokka).to(SortedMap),
       groupNames              = filterEmpty(preparsed.groupNames).view.mapValues(markupToDokka).to(SortedMap),
       groupPrio               = preparsed.groupPrio,
-      hideImplicitConversions = filterEmpty(preparsed.hideImplicitConversions).map(markupToDokka)
+      hideImplicitConversions = filterEmpty(preparsed.hideImplicitConversions).map(markupToDokka),
+      snippetCompilerData     = getSnippetCompilerData(owner)
     )
 }
 
