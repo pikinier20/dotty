@@ -127,7 +127,7 @@ object Tuple {
 
   /** Filters out those members of the tuple for which the predicate `P` returns `false`.
    *  A predicate `P[X]` is a type that can be either `true` or `false`. For example:
-   *  ```scala
+   *  ```scala sc:nocompile
    *  type IsString[x] = x match {
    *    case String => true
    *    case _ => false

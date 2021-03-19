@@ -427,11 +427,11 @@ object IArray:
   /** Build an array from the iterable collection.
    *
    *  {{{
-   *  scala> val a = IArray.from(Seq(1, 5))
-   *  val a: IArray[Int] = IArray(1, 5)
+   *  val a = IArray.from(Seq(1, 5))
+   *  //val a: IArray[Int] = IArray(1, 5)
    *
-   *  scala> val b = IArray.from(Range(1, 5))
-   *  val b: IArray[Int] = IArray(1, 2, 3, 4)
+   *  val b = IArray.from(Range(1, 5))
+   *  //val b: IArray[Int] = IArray(1, 2, 3, 4)
    *  }}}
    *
    *  @param  it the iterable collection
