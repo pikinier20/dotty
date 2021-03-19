@@ -6,7 +6,7 @@ import annotation.compileTimeOnly
 /** Use this method when you have a type, do not have a value for it but want to
  *  pattern match on it. For example, given a type `Tup <: Tuple`, one can
  *  pattern-match on it as follows:
- *  ```scala
+ *  ```scala sc:nocompile
  *  inline erasedValue[Tup] match {
  *    case _: EmptyTuple => ...
  *    case _: h *: t => ...
@@ -33,7 +33,7 @@ def uninitialized: Nothing = ???
 /** The error method is used to produce user-defined compile errors during inline expansion.
  *  If an inline expansion results in a call error(msgStr) the compiler produces an error message containing the given msgStr.
  *
- *  ```scala
+ *  ```scala sc:nocompile
  *  error("My error message")
  *  ```
  *  or
@@ -71,7 +71,7 @@ transparent inline def codeOf(arg: Any): String =
  *  inlining and constant folding.
  *
  *  Usage:
- *  ```scala
+ *  ```scala sc:nocompile
  *  inline def twice(inline n: Int): Int =
  *    requireConst(n) // compile-time assertion that the parameter `n` is a constant
  *    n + n
@@ -115,7 +115,7 @@ end constValueTuple
 
 /** Summons first given matching one of the listed cases. E.g. in
  *
- *  ```scala
+ *  ```scala sc:nocompile
  *  given B { ... }
  *
  *  summonFrom {
