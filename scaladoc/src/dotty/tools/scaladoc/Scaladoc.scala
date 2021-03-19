@@ -44,6 +44,7 @@ object Scaladoc:
     regexesToSkip: List[String] = Nil,
     rootDocPath: Option[String] = None,
     documentSyntheticTypes: Boolean = false,
+    snippetCompilerArgs: List[String] = Nil
   )
 
   def run(args: Array[String], rootContext: CompilerContext): Reporter =
@@ -60,7 +61,7 @@ object Scaladoc:
       val tastyFiles = parsedArgs.tastyFiles ++ parsedArgs.tastyDirs.flatMap(listTastyFiles)
 
       if !ctx.reporter.hasErrors then
-        val updatedArgs = parsedArgs.copy(tastyDirs = Nil, tastyFiles = tastyFiles)
+        val updatedArgs = parsedArgs.copy(tastyDirs = parsedArgs.tastyDirs, tastyFiles = tastyFiles)
 
         if (parsedArgs.output.exists()) util.IO.delete(parsedArgs.output)
 
@@ -173,7 +174,8 @@ object Scaladoc:
         skipById.get ++ deprecatedSkipPackages.get,
         skipByRegex.get,
         docRootContent.nonDefault,
-        YdocumentSyntheticTypes.get
+        YdocumentSyntheticTypes.get,
+        snippetCompilerArgs.get
       )
       (Some(docArgs), newContext)
     }
