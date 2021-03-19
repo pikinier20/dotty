@@ -1665,10 +1665,10 @@ object Build {
           val stdLibRoot = projectRoot.relativize(managedSources.toPath.normalize())
           val docRootFile = stdLibRoot.resolve("rootdoc.txt")
 
-          val dottyManagesSources =
+          val dottyManagedSources =
             (`stdlib-bootstrapped`/Compile/sourceManaged).value / "dotty-library-src"
 
-          val dottyLibRoot = projectRoot.relativize(dottyManagesSources.toPath.normalize())
+          val dottyLibRoot = projectRoot.relativize(dottyManagedSources.toPath.normalize())
 
           if (dottyJars.isEmpty) Def.task { streams.value.log.error("Dotty lib wasn't found") }
           else Def.task{
@@ -1681,8 +1681,21 @@ object Build {
             Seq(
               "-comment-syntax", "wiki",
               "-siteroot", "docs",
-              s"-source-links:docs=github://lampepfl/dotty/master#docs",
-              "-doc-root-content", docRootFile.toString
+              "-project-logo", "docs/logo.svg",
+              "-external-mappings:.*java.*::javadoc::https://docs.oracle.com/javase/8/docs/api/",
+              "-social-links:" +
+                "github::https://github.com/lampepfl/dotty," +
+                "gitter::https://gitter.im/scala/scala," +
+                "twitter::https://twitter.com/scala_lang",
+              s"-source-links:" +
+                s"$dottyLibRoot=github://lampepfl/dotty/master#library/src," +
+                s"$stdLibRoot=github://scala/scala/v${stdlibVersion(Bootstrapped)}#src/library," +
+                s"docs=github://lampepfl/dotty/master#docs",
+              "-doc-root-content", docRootFile.toString,
+              "-snippet-compiler-args:" +
+                s"$dottyLibRoot/scala/quoted=nocompile," +
+                s"$dottyLibRoot=compile",
+              "-Ydocument-synthetic-types"
             )
           ))
         }.evaluated,
