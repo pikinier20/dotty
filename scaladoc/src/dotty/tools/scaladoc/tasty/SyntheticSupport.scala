@@ -114,4 +114,3 @@ trait SyntheticsSupport:
     typeForClass(c).asInstanceOf[dotc.core.Types.Type]
       .memberInfo(symbol.asInstanceOf[dotc.core.Symbols.Symbol])
       .asInstanceOf[TypeRepr]
-
