@@ -14,6 +14,10 @@ class SymOps[Q <: Quotes](val q: Q) extends JavadocAnchorCreator with Scaladoc2A
   private val externalLinkCache: scala.collection.mutable.Map[AbstractFile, Option[ExternalDocLink]] = MMap()
 
   extension (sym: Symbol)
+    def source =
+      val path = sym.pos.map(_.sourceFile.jpath).filter(_ != null).map(_.toAbsolutePath)
+      path.map(TastyMemberSource(_, sym.pos.get.startLine))
+
     def packageName: String = (
       if (sym.isPackageDef) sym.fullName
       else sym.maybeOwner.packageName

@@ -35,10 +35,6 @@ trait BasicSupport:
   extension (sym: Symbol)
     def documentation = sym.docstring.map(parseComment(_, sym.tree))
 
-    def source(using Quotes) =
-      val path = sym.pos.map(_.sourceFile.jpath).filter(_ != null).map(_.toAbsolutePath)
-      path.map(TastyMemberSource(_, sym.pos.get.startLine))
-
     def getAnnotations(): List[Annotation] =
       sym.annotations.filterNot(_.symbol.packageName.startsWith("scala.annotation.internal")).map(parseAnnotation).reverse
 

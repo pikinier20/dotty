@@ -444,7 +444,7 @@ trait ClassLikeSupport:
       modifiers = modifiers,
       annotations = symbol.getAnnotations(),
       signature = signature,
-      sources = symbol.source(using qctx),
+      sources = symbol.source,
       origin = origin,
       inheritedFrom = inheritedFrom,
       graph = graph,
