@@ -44,7 +44,8 @@ object Scaladoc:
     regexesToSkip: List[String] = Nil,
     rootDocPath: Option[String] = None,
     documentSyntheticTypes: Boolean = false,
-    snippetCompilerArgs: List[String] = Nil
+    snippetCompiler: List[String] = Nil,
+    snippetCompilerDebug: Boolean = false
   )
 
   def run(args: Array[String], rootContext: CompilerContext): Reporter =
@@ -175,7 +176,8 @@ object Scaladoc:
         skipByRegex.get,
         docRootContent.nonDefault,
         YdocumentSyntheticTypes.get,
-        snippetCompilerArgs.get
+        snippetCompiler.get,
+        snippetCompilerDebug.get
       )
       (Some(docArgs), newContext)
     }

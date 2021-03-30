@@ -1650,7 +1650,7 @@ object Build {
                 s"$stdLibRoot=github://scala/scala/v${stdlibVersion(Bootstrapped)}#src/library," +
                 s"docs=github://lampepfl/dotty/master#docs",
               "-doc-root-content", docRootFile.toString,
-              "-snippet-compiler-args:" +
+              "-snippet-compiler:" +
                 s"$dottyLibRoot/scala/quoted=nocompile," +
                 s"$dottyLibRoot=compile",
               "-Ydocument-synthetic-types"
@@ -1663,7 +1663,11 @@ object Build {
             (Test / Build.testcasesOutputDir).value,
             "scaladoc testcases",
             "scaladoc/output/testcases",
-            "master")
+            "master",
+            Seq(
+              "-snippet-compiler-debug"
+            )
+          )
         }.value,
 
         Test / buildInfoKeys := Seq[BuildInfoKey](

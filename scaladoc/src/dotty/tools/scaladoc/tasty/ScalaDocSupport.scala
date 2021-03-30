@@ -9,6 +9,8 @@ import dotty.tools.scaladoc.tasty.comments.Comment
 trait ScaladocSupport { self: TastyParser =>
   import qctx.reflect._
 
+  private val snippetChecker: snippets.SnippetChecker = snippets.SnippetChecker()
+
   def parseCommentString(comment: String, sym: Symbol, pos: Option[Position]): Comment =
     val preparsed = comments.Preparser.preparse(comments.Cleaner.clean(comment))
 
@@ -27,9 +29,9 @@ trait ScaladocSupport { self: TastyParser =>
 
     val parser = commentSyntax match {
       case CommentSyntax.Wiki =>
-        comments.WikiCommentParser(comments.Repr(qctx)(sym))
+        comments.WikiCommentParser(comments.Repr(qctx)(sym), snippetChecker)
       case CommentSyntax.Markdown =>
-        comments.MarkdownCommentParser(comments.Repr(qctx)(sym))
+        comments.MarkdownCommentParser(comments.Repr(qctx)(sym), snippetChecker)
     }
     parser.parse(preparsed)
 

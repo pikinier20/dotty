@@ -4,7 +4,7 @@ package tasty.comments
 import scala.collection.immutable.SortedMap
 import scala.util.Try
 
-import com.vladsch.flexmark.util.{ast => mdu}
+import com.vladsch.flexmark.util.{ast => mdu, sequence}
 import com.vladsch.flexmark.{ast => mda}
 import com.vladsch.flexmark.formatter.Formatter
 import com.vladsch.flexmark.util.options.MutableDataSet
@@ -13,6 +13,7 @@ import scala.quoted._
 import dotty.tools.scaladoc.tasty.comments.wiki.Paragraph
 import dotty.tools.scaladoc.DocPart
 import dotty.tools.scaladoc.tasty.SymOps
+import dotty.tools.scaladoc.snippets._
 import collection.JavaConverters._
 
 class Repr(val qctx: Quotes)(val sym: qctx.reflect.Symbol)
@@ -39,8 +40,7 @@ case class Comment (
   groupNames:              SortedMap[String, DocPart],
   groupPrio:               SortedMap[String, Int],
   /** List of conversions to hide - containing e.g: `scala.Predef.FloatArrayOps` */
-  hideImplicitConversions: List[DocPart],
-  snippetCompilerData:     SnippetCompilerData
+  hideImplicitConversions: List[DocPart]
 )
 
 case class PreparsedComment(
@@ -70,13 +70,14 @@ case class PreparsedComment(
 
 case class DokkaCommentBody(summary: Option[DocPart], body: DocPart)
 
-abstract class MarkupConversion[T](val repr: Repr)(using DocContext) {
+abstract class MarkupConversion[T](val repr: Repr, snippetChecker: SnippetChecker)(using dctx: DocContext) {
   protected def stringToMarkup(str: String): T
   protected def markupToDokka(t: T): DocPart
   protected def markupToString(t: T): String
   protected def markupToDokkaCommentBody(t: T): DokkaCommentBody
   protected def filterEmpty(xs: List[String]): List[T]
   protected def filterEmpty(xs: SortedMap[String, String]): SortedMap[String, T]
+  protected def processSnippets(t: T): T
 
   val qctx: repr.qctx.type = if repr == null then null else repr.qctx // TODO why we do need null?
   val owner: qctx.reflect.Symbol =
@@ -173,8 +174,29 @@ abstract class MarkupConversion[T](val repr: Repr)(using DocContext) {
       }
     }
 
+  def snippetCheckingFunc: qctx.reflect.Symbol => SnippetChecker.SnippetCheckingFunc =
+    (s: qctx.reflect.Symbol) => {
+      val path = s.source.map(_.path)
+      val pathBasedArg = dctx.snippetCompilerArgs.get(path)
+      val data = getSnippetCompilerData(s)
+      (str: String, lineOffset: SnippetChecker.LineOffset, argOverride: Option[SCFlags]) => {
+          val arg = argOverride.fold(pathBasedArg)(pathBasedArg.overrideFlag(_))
+
+          val res = snippetChecker.checkSnippet(str, Some(data), arg, lineOffset)
+          snippetChecker.checkSnippet(str, Some(data), arg, lineOffset).foreach { _ match {
+              case r: SnippetCompilationResult if !r.isSuccessful =>
+                val msg = s"In member ${s.name} (${s.dri.location}):\n${r.getSummary}"
+                report.error(msg)(using dctx.compilerContext)
+              case _ =>
+            }
+          }
+          res
+      }
+    }
+
   final def parse(preparsed: PreparsedComment): Comment =
-    val body = markupToDokkaCommentBody(stringToMarkup(preparsed.body))
+    val markup = stringToMarkup(preparsed.body)
+    val body = markupToDokkaCommentBody(processSnippets(markup))
     Comment(
       body                    = body.body,
       short                   = body.summary,
@@ -195,13 +217,12 @@ abstract class MarkupConversion[T](val repr: Repr)(using DocContext) {
       groupDesc               = filterEmpty(preparsed.groupDesc).view.mapValues(markupToDokka).to(SortedMap),
       groupNames              = filterEmpty(preparsed.groupNames).view.mapValues(markupToDokka).to(SortedMap),
       groupPrio               = preparsed.groupPrio,
-      hideImplicitConversions = filterEmpty(preparsed.hideImplicitConversions).map(markupToDokka),
-      snippetCompilerData     = getSnippetCompilerData(owner)
+      hideImplicitConversions = filterEmpty(preparsed.hideImplicitConversions).map(markupToDokka)
     )
 }
 
-class MarkdownCommentParser(repr: Repr)(using DocContext)
-    extends MarkupConversion[mdu.Node](repr) {
+class MarkdownCommentParser(repr: Repr, snippetChecker: SnippetChecker)(using dctx: DocContext)
+    extends MarkupConversion[mdu.Node](repr, snippetChecker) {
 
   def stringToMarkup(str: String) =
     MarkdownParser.parseToMarkdown(str, markdown.DocFlexmarkParser(resolveLink))
@@ -226,10 +247,41 @@ class MarkdownCommentParser(repr: Repr)(using DocContext)
     xs.view.mapValues(_.trim)
       .filterNot { case (_, v) => v.isEmpty }
       .mapValues(stringToMarkup).to(SortedMap)
+
+  def processSnippets(root: mdu.Node): mdu.Node = {
+    val nodes = root.getDescendants().asScala.collect {
+      case fcb: mda.FencedCodeBlock => fcb
+    }.toList
+    if !nodes.isEmpty then {
+      val checkingFunc: SnippetChecker.SnippetCheckingFunc = snippetCheckingFunc(owner)
+      nodes.foreach { node =>
+        val snippet = node.getContentChars.toString
+        val lineOffset = node.getStartLineNumber
+        val info = node.getInfo.toString
+        val argOverride =
+          info.split(" ")
+            .find(_.startsWith("sc:"))
+            .map(_.stripPrefix("sc:"))
+            .map(snippets.SCFlagsParser.parse)
+            .flatMap(_.toOption)
+        checkingFunc(snippet, lineOffset, argOverride) match {
+          case Some(SnippetCompilationResult(wrapped, _, _, _)) if dctx.snippetCompilerArgs.debug =>
+            val s = sequence.BasedSequence.EmptyBasedSequence()
+              .append(wrapped)
+              .append(sequence.BasedSequence.EOL)
+            val content = mdu.BlockContent()
+            content.add(s, 0)
+            node.setContent(content)
+          case _ =>
+        }
+      }
+    }
+    root
+  }
 }
 
-class WikiCommentParser(repr: Repr)(using DocContext)
-    extends MarkupConversion[wiki.Body](repr):
+class WikiCommentParser(repr: Repr, snippetChecker: SnippetChecker)(using DocContext)
+    extends MarkupConversion[wiki.Body](repr, snippetChecker):
 
   def stringToMarkup(str: String) = wiki.Parser(str, resolverLink).document()
 
@@ -279,3 +331,7 @@ class WikiCommentParser(repr: Repr)(using DocContext)
   def filterEmpty(xs: SortedMap[String,String]) =
     xs.view.mapValues(stringToMarkup).to(SortedMap)
       .filterNot { case (_, v) => v.blocks.isEmpty }
+
+  def processSnippets(root: wiki.Body): wiki.Body =
+    // Currently not supported
+    root

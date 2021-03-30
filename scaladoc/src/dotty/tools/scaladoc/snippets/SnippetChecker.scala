@@ -11,16 +11,13 @@ class SnippetChecker()(using ctx: DocContext):
       ctx.args.tastyDirs.map(_.getAbsolutePath()).mkString(sep)
   private val compiler: SnippetCompiler = SnippetCompiler(classpath = cp)
 
-  var warningsCount = 0
-  var errorsCount = 0
-
   def checkSnippet(
     snippet: String,
     data: Option[SnippetCompilerData],
     arg: SnippetCompilerArg,
     lineOffset: SnippetChecker.LineOffset
   ): Option[SnippetCompilationResult] = {
-    if arg.is(SCFlags.Compile) then
+    if arg.flag != SCFlags.NoCompile then
       val wrapped = WrappedSnippet(
         snippet,
         data.map(_.packageName),
@@ -30,19 +27,11 @@ class SnippetChecker()(using ctx: DocContext):
         lineOffset + data.fold(0)(_.position.line) + 1,
         data.fold(0)(_.position.column)
       )
-      val res = compiler.compile(wrapped)
-      if !res.messages.filter(_.level == MessageLevel.Error).isEmpty then errorsCount = errorsCount + 1
-      if !res.messages.filter(_.level == MessageLevel.Warning).isEmpty then warningsCount = warningsCount + 1
+      val res = compiler.compile(wrapped, arg)
       Some(res)
     else None
   }
 
-  def summary: String = s"""
-  |Snippet compiler summary:
-  |  Found $warningsCount warnings
-  |  Found $errorsCount errors
-  |""".stripMargin
-
 object SnippetChecker:
   type LineOffset = Int
-  type SnippetCheckingFunc = (String, LineOffset, Option[SnippetCompilerArg]) => Unit
+  type SnippetCheckingFunc = (String, LineOffset, Option[SCFlags]) => Option[SnippetCompilationResult]
