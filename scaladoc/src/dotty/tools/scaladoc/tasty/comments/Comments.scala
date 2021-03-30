@@ -4,7 +4,7 @@ package tasty.comments
 import scala.collection.immutable.SortedMap
 import scala.util.Try
 
-import com.vladsch.flexmark.util.{ast => mdu}
+import com.vladsch.flexmark.util.{ast => mdu, sequence}
 import com.vladsch.flexmark.{ast => mda}
 import com.vladsch.flexmark.formatter.Formatter
 import com.vladsch.flexmark.util.options.MutableDataSet
@@ -40,8 +40,7 @@ case class Comment (
   groupNames:              SortedMap[String, DocPart],
   groupPrio:               SortedMap[String, Int],
   /** List of conversions to hide - containing e.g: `scala.Predef.FloatArrayOps` */
-  hideImplicitConversions: List[DocPart],
-  snippetCompilerData:     SnippetCompilerData
+  hideImplicitConversions: List[DocPart]
 )
 
 case class PreparsedComment(
@@ -183,6 +182,7 @@ abstract class MarkupConversion[T](val repr: Repr, snippetChecker: SnippetChecke
       (str: String, lineOffset: SnippetChecker.LineOffset, argOverride: Option[SCFlags]) => {
           val arg = argOverride.fold(pathBasedArg)(pathBasedArg.overrideFlag(_))
 
+          val res = snippetChecker.checkSnippet(str, Some(data), arg, lineOffset)
           snippetChecker.checkSnippet(str, Some(data), arg, lineOffset).foreach { _ match {
               case r: SnippetCompilationResult if !r.isSuccessful =>
                 val msg = s"In member ${s.name} (${s.dri.location}):\n${r.getSummary}"
@@ -190,6 +190,7 @@ abstract class MarkupConversion[T](val repr: Repr, snippetChecker: SnippetChecke
               case _ =>
             }
           }
+          res
       }
     }
 
@@ -216,12 +217,11 @@ abstract class MarkupConversion[T](val repr: Repr, snippetChecker: SnippetChecke
       groupDesc               = filterEmpty(preparsed.groupDesc).view.mapValues(markupToDokka).to(SortedMap),
       groupNames              = filterEmpty(preparsed.groupNames).view.mapValues(markupToDokka).to(SortedMap),
       groupPrio               = preparsed.groupPrio,
-      hideImplicitConversions = filterEmpty(preparsed.hideImplicitConversions).map(markupToDokka),
-      snippetCompilerData     = getSnippetCompilerData(owner)
+      hideImplicitConversions = filterEmpty(preparsed.hideImplicitConversions).map(markupToDokka)
     )
 }
 
-class MarkdownCommentParser(repr: Repr, snippetChecker: SnippetChecker)(using DocContext)
+class MarkdownCommentParser(repr: Repr, snippetChecker: SnippetChecker)(using dctx: DocContext)
     extends MarkupConversion[mdu.Node](repr, snippetChecker) {
 
   def stringToMarkup(str: String) =
@@ -264,7 +264,16 @@ class MarkdownCommentParser(repr: Repr, snippetChecker: SnippetChecker)(using Do
             .map(_.stripPrefix("sc:"))
             .map(snippets.SCFlagsParser.parse)
             .flatMap(_.toOption)
-        checkingFunc(snippet, lineOffset, argOverride)
+        checkingFunc(snippet, lineOffset, argOverride) match {
+          case Some(SnippetCompilationResult(wrapped, _, _, _)) if dctx.snippetCompilerArgs.debug =>
+            val s = sequence.BasedSequence.EmptyBasedSequence()
+              .append(wrapped)
+              .append(sequence.BasedSequence.EOL)
+            val content = mdu.BlockContent()
+            content.add(s, 0)
+            node.setContent(content)
+          case _ =>
+        }
       }
     }
     root
