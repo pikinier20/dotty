@@ -1651,7 +1651,6 @@ object Build {
                 s"docs=github://lampepfl/dotty/master#docs",
               "-doc-root-content", docRootFile.toString,
               "-snippet-compiler:" +
-                s"$dottyLibRoot/scala/quoted=nocompile," +
                 s"$dottyLibRoot=compile",
               "-Ydocument-synthetic-types"
             )
