@@ -1651,7 +1651,8 @@ object Build {
                 s"docs=github://lampepfl/dotty/master#docs",
               "-doc-root-content", docRootFile.toString,
               "-snippet-compiler:" +
-                s"$dottyLibRoot=compile",
+                s"$dottyLibRoot=compile," +
+                "docs=compile",
               "-Ydocument-synthetic-types"
             )
           ))
@@ -1664,6 +1665,7 @@ object Build {
             "scaladoc/output/testcases",
             "master",
             Seq(
+              "-siteroot", "scaladoc-testcases/docs",
               "-snippet-compiler-debug"
             )
           )
