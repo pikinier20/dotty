@@ -71,7 +71,7 @@ case class PreparsedComment(
 
 case class DokkaCommentBody(summary: Option[DocPart], body: DocPart)
 
-abstract class MarkupConversion[T](val repr: Repr, snippetChecker: SnippetChecker)(using dctx: DocContext) {
+abstract class MarkupConversion[T](val repr: Repr)(using dctx: DocContext) {
   protected def stringToMarkup(str: String): T
   protected def markupToDokka(t: T): DocPart
   protected def markupToString(t: T): String
@@ -79,6 +79,8 @@ abstract class MarkupConversion[T](val repr: Repr, snippetChecker: SnippetChecke
   protected def filterEmpty(xs: List[String]): List[T]
   protected def filterEmpty(xs: SortedMap[String, String]): SortedMap[String, T]
   protected def processSnippets(t: T): T
+
+  lazy val snippetChecker = dctx.snippetChecker
 
   val qctx: repr.qctx.type = if repr == null then null else repr.qctx // TODO why we do need null?
   val owner: qctx.reflect.Symbol =
@@ -122,64 +124,11 @@ abstract class MarkupConversion[T](val repr: Repr, snippetChecker: SnippetChecke
       case _ => None
     }
 
-  private def getSnippetCompilerData(sym: qctx.reflect.Symbol): SnippetCompilerData =
-    val packageName = sym.packageName
-    if !sym.isPackageDef then sym.tree match {
-      case c: qctx.reflect.ClassDef =>
-        import qctx.reflect._
-        import dotty.tools.dotc
-        given dotc.core.Contexts.Context = qctx.asInstanceOf[scala.quoted.runtime.impl.QuotesImpl].ctx
-        val cSym = c.symbol.asInstanceOf[dotc.core.Symbols.ClassSymbol]
-
-        def createTypeConstructor(tpe: dotc.core.Types.Type, topLevel: Boolean = true): String = tpe match {
-            case t @ dotc.core.Types.TypeBounds(upper, lower) => lower match {
-              case l: dotc.core.Types.HKTypeLambda =>
-                (if topLevel then "" else "?") + l.paramInfos.map(p => createTypeConstructor(p, false)).mkString("[",", ","]")
-              case _ => (if topLevel then "" else "_")
-            }
-          }
-        val classType =
-          val ct = cSym.classInfo.selfType.show.replace(".this.",".")
-          Some(ct)
-        val classGenerics = Option.when(
-            !cSym.typeParams.isEmpty
-          )(
-            cSym.typeParams.map(_.typeRef).map(t =>
-              t.show +
-              createTypeConstructor(t.asInstanceOf[dotc.core.Types.TypeRef].underlying)
-            ).mkString("[",", ","]")
-          )
-        SnippetCompilerData(packageName, classType, classGenerics, Nil, position(hackGetPositionOfDocstring(using qctx)(sym)))
-      case _ => getSnippetCompilerData(sym.maybeOwner)
-    } else SnippetCompilerData(packageName, None, None, Nil, position(hackGetPositionOfDocstring(using qctx)(sym)))
-
-  private def position(p: Option[qctx.reflect.Position]): SnippetCompilerData.Position =
-    p.fold(SnippetCompilerData.Position(0, 0))(p => SnippetCompilerData.Position(p.startLine, p.startColumn))
-
-  private def hackGetPositionOfDocstring(using Quotes)(s: qctx.reflect.Symbol): Option[qctx.reflect.Position] =
-    import dotty.tools.dotc.core.Comments.CommentsContext
-    import dotty.tools.dotc
-    given ctx: dotc.core.Contexts.Context = qctx.asInstanceOf[scala.quoted.runtime.impl.QuotesImpl].ctx
-    val docCtx = ctx.docCtx.getOrElse {
-      throw new RuntimeException(
-        "DocCtx could not be found and documentations are unavailable. This is a compiler-internal error."
-      )
-    }
-    val span = docCtx.docstring(s.asInstanceOf[dotc.core.Symbols.Symbol]).span
-    s.pos.flatMap { pos =>
-      docCtx.docstring(s.asInstanceOf[dotc.core.Symbols.Symbol]).map { docstring =>
-        dotty.tools.dotc.util.SourcePosition(
-          pos.sourceFile.asInstanceOf[dotty.tools.dotc.util.SourceFile],
-          docstring.span
-        ).asInstanceOf[qctx.reflect.Position]
-      }
-    }
-
   def snippetCheckingFunc: qctx.reflect.Symbol => SnippetChecker.SnippetCheckingFunc =
     (s: qctx.reflect.Symbol) => {
       val path = s.source.map(_.path)
       val pathBasedArg = dctx.snippetCompilerArgs.get(path)
-      val data = getSnippetCompilerData(s)
+      val data = SnippetCompilerDataCollector[qctx.type](qctx).getSnippetCompilerData(s)
       (str: String, lineOffset: SnippetChecker.LineOffset, argOverride: Option[SCFlags]) => {
           val arg = argOverride.fold(pathBasedArg)(pathBasedArg.overrideFlag(_))
 
@@ -220,8 +169,8 @@ abstract class MarkupConversion[T](val repr: Repr, snippetChecker: SnippetChecke
     )
 }
 
-class MarkdownCommentParser(repr: Repr, snippetChecker: SnippetChecker)(using dctx: DocContext)
-    extends MarkupConversion[mdu.Node](repr, snippetChecker) {
+class MarkdownCommentParser(repr: Repr)(using dctx: DocContext)
+    extends MarkupConversion[mdu.Node](repr) {
 
   def stringToMarkup(str: String) =
     MarkdownParser.parseToMarkdown(str, markdown.DocFlexmarkParser(resolveLink))
@@ -247,56 +196,12 @@ class MarkdownCommentParser(repr: Repr, snippetChecker: SnippetChecker)(using dc
       .filterNot { case (_, v) => v.isEmpty }
       .mapValues(stringToMarkup).to(SortedMap)
 
-  def processSnippets(root: mdu.Node): mdu.Node = {
-    val nodes = root.getDescendants().asScala.collect {
-      case fcb: mda.FencedCodeBlock => fcb
-    }.toList
-    if nodes.nonEmpty then {
-      val checkingFunc: SnippetChecker.SnippetCheckingFunc = snippetCheckingFunc(owner)
-      nodes.foreach { node =>
-        val snippet = node.getContentChars.toString
-        val lineOffset = node.getStartLineNumber
-        val info = node.getInfo.toString
-        val argOverride =
-          info.split(" ")
-            .find(_.startsWith("sc:"))
-            .map(_.stripPrefix("sc:"))
-            .map(snippets.SCFlagsParser.parse)
-            .flatMap(_.toOption)
-        val snippetCompilationResult = checkingFunc(snippet, lineOffset, argOverride) match {
-          case result@Some(SnippetCompilationResult(wrapped, _, _, _)) if dctx.snippetCompilerArgs.debug =>
-            val s = sequence.BasedSequence.EmptyBasedSequence()
-              .append(wrapped)
-              .append(sequence.BasedSequence.EOL)
-            val content = mdu.BlockContent()
-            content.add(s, 0)
-            node.setContent(content)
-            result
-          case result =>
-            result.map { r =>
-              r.copy(
-                messages = r.messages.map { m =>
-                  m.copy(
-                    position = m.position.map { p =>
-                      p.copy(
-                        relativeLine = p.relativeLine - lineOffset
-                      )
-                    }
-                  )
-                }
-              )
-            }
-        }
-        node.insertBefore(new ExtendedFencedCodeBlock(node, snippetCompilationResult))
-        node.unlink()
-      }
-    }
-    root
-  }
+  def processSnippets(root: mdu.Node): mdu.Node =
+    FlexmarkSnippetProcessor.processSnippets(root, dctx.snippetCompilerArgs.debug, snippetCheckingFunc(owner))
 }
 
-class WikiCommentParser(repr: Repr, snippetChecker: SnippetChecker)(using DocContext)
-    extends MarkupConversion[wiki.Body](repr, snippetChecker):
+class WikiCommentParser(repr: Repr)(using DocContext)
+    extends MarkupConversion[wiki.Body](repr):
 
   def stringToMarkup(str: String) = wiki.Parser(str, resolverLink).document()
 

@@ -3,12 +3,16 @@ package snippets
 
 import dotty.tools.scaladoc.DocContext
 import java.nio.file.Paths
+import java.io.File
 
-class SnippetChecker()(using ctx: DocContext):
+class SnippetChecker(val classpath: String, val tastyDirs: Seq[File]):
   private val sep = System.getProperty("path.separator")
-  private val cp = System.getProperty("java.class.path") + sep +
-      Paths.get(ctx.args.classpath).toAbsolutePath + sep +
-      ctx.args.tastyDirs.map(_.getAbsolutePath()).mkString(sep)
+  private val cp = List(
+    System.getProperty("java.class.path"),
+    Paths.get(classpath).toAbsolutePath,
+    tastyDirs.map(_.getAbsolutePath()).mkString(sep)
+  ).mkString(sep)
+
   private val compiler: SnippetCompiler = SnippetCompiler(classpath = cp)
 
   def checkSnippet(
@@ -21,8 +25,7 @@ class SnippetChecker()(using ctx: DocContext):
       val wrapped = WrappedSnippet(
         snippet,
         data.map(_.packageName),
-        data.flatMap(_.classType),
-        data.flatMap(_.classGenerics),
+        data.fold(Nil)(_.classInfos),
         data.map(_.imports).getOrElse(Nil),
         lineOffset + data.fold(0)(_.position.line) + 1,
         data.fold(0)(_.position.column)
