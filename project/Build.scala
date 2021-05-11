@@ -1607,16 +1607,26 @@ object Build {
     }
 
     def asScaladoc: Project = {
-      def generateDocumentation(targets: Seq[String], name: String, outDir: String, ref: String, params: Seq[String] = Nil) =
+      def generateDocumentation(targets: Seq[String], name: String, outDir: String, ref: String, params: Seq[String] = Nil, addBootclasspath: Boolean = false) =
         Def.taskDyn {
           val distLocation = (dist / pack).value
           val projectVersion = version.value
           IO.createDirectory(file(outDir))
           val stdLibVersion = stdlibVersion(Bootstrapped)
+          val scalaLib = findArtifactPath(externalCompilerClasspathTask.value, "scala-library")
+          val dottyLib = (`scala3-library` / Compile / classDirectory).value
           // TODO add versions etc.
           def srcManaged(v: String, s: String) = s"out/bootstrap/stdlib-bootstrapped/scala-$v/src_managed/main/$s-library-src"
           def scalaSrcLink(v: String, s: String) = s"-source-links:$s=github://scala/scala/v$v#src/library"
           def dottySrcLink(v: String, s: String) = s"-source-links:$s=github://lampepfl/dotty/$v#library/src"
+          def bootclasspath: Seq[String] = if(addBootclasspath) Seq(
+            "-bootclasspath",
+            Seq(
+                scalaLib,
+                dottyLib
+            ).mkString(System.getProperty("path.separator"))
+          ) else Nil
+
           val revision = Seq("-revision", ref, "-project-version", projectVersion)
           val cmd = Seq(
             "-d",
@@ -1625,7 +1635,7 @@ object Build {
             name,
             scalaSrcLink(stdLibVersion, srcManaged(dottyNonBootstrappedVersion, "scala")),
             dottySrcLink(referenceVersion, srcManaged(dottyNonBootstrappedVersion, "dotty"))
-          ) ++ scalacOptionsDocSettings ++ revision ++ params ++ targets
+          ) ++ scalacOptionsDocSettings ++ revision ++ params ++ targets ++ bootclasspath
           import _root_.scala.sys.process._
           Def.task((s"$distLocation/bin/scaladoc" +: cmd).!)
         }
@@ -1643,7 +1653,7 @@ object Build {
         generateSelfDocumentation := Def.taskDyn {
           generateDocumentation(
             (Compile / classDirectory).value.getAbsolutePath :: Nil,
-            "scaladoc", "scaladoc/output/self", VersionUtil.gitHash,
+            "scaladoc", "scaladoc/output/self", VersionUtil.gitHash, addBootclasspath = true
           )
         }.value,
         generateScalaDocumentation := Def.inputTaskDyn {
@@ -1709,7 +1719,8 @@ object Build {
             Seq(
               "-siteroot", "scaladoc-testcases/docs",
               "-snippet-compiler-debug"
-            )
+            ),
+            addBootclasspath = true
           )
         }.value,
 
