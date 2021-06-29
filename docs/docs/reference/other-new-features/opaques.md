@@ -41,6 +41,30 @@ They convert from `Double`s to `Logarithm` values. Moreover, an operation `toDou
 The following operations would be valid because they use functionality implemented in the `MyMath` object.
 
 ```scala
+//{
+object MyMath:
+
+  opaque type Logarithm = Double
+
+  object Logarithm:
+
+    // These are the two ways to lift to the Logarithm type
+
+    def apply(d: Double): Logarithm = math.log(d)
+
+    def safe(d: Double): Option[Logarithm] =
+      if d > 0.0 then Some(math.log(d)) else None
+
+  end Logarithm
+
+  // Extension methods define opaque types' public APIs
+  extension (x: Logarithm)
+    def toDouble: Double = math.exp(x)
+    def + (y: Logarithm): Logarithm = Logarithm(math.exp(x) + math.exp(y))
+    def * (y: Logarithm): Logarithm = x + y
+
+end MyMath
+//}
 import MyMath.Logarithm
 
 val l = Logarithm(1.0)
@@ -51,7 +75,34 @@ val l4 = l + l2
 
 But the following operations would lead to type errors:
 
-```scala
+```scala sc:fail
+//{
+object MyMath:
+
+  opaque type Logarithm = Double
+
+  object Logarithm:
+
+    // These are the two ways to lift to the Logarithm type
+
+    def apply(d: Double): Logarithm = math.log(d)
+
+    def safe(d: Double): Option[Logarithm] =
+      if d > 0.0 then Some(math.log(d)) else None
+
+  end Logarithm
+
+  // Extension methods define opaque types' public APIs
+  extension (x: Logarithm)
+    def toDouble: Double = math.exp(x)
+    def + (y: Logarithm): Logarithm = Logarithm(math.exp(x) + math.exp(y))
+    def * (y: Logarithm): Logarithm = x + y
+
+end MyMath
+//}
+import MyMath.Logarithm
+
+val l = Logarithm(1.0)
 val d: Double = l       // error: found: Logarithm, required: Double
 val l2: Logarithm = 1.0 // error: found: Double, required: Logarithm
 l * 2                   // error: found: Int(2), required: Logarithm
@@ -110,6 +161,30 @@ it known outside the `Access` object that `Permission` is a subtype of the other
 two types.  Hence, the following usage scenario type-checks.
 
 ```scala
+//{
+object Access:
+
+  opaque type Permissions = Int
+  opaque type PermissionChoice = Int
+  opaque type Permission <: Permissions & PermissionChoice = Int
+
+  extension (x: Permissions)
+    def & (y: Permissions): Permissions = x | y
+  extension (x: PermissionChoice)
+    def | (y: PermissionChoice): PermissionChoice = x | y
+  extension (granted: Permissions)
+    def is(required: Permissions) = (granted & required) == required
+  extension (granted: Permissions)
+    def isOneOf(required: PermissionChoice) = (granted & required) != 0
+
+  val NoPermission: Permission = 0
+  val Read: Permission = 1
+  val Write: Permission = 2
+  val ReadWrite: Permissions = Read | Write
+  val ReadOrWrite: PermissionChoice = Read | Write
+
+end Access
+//}
 object User:
   import Access.*
 
@@ -152,7 +227,19 @@ class Logarithms:
 ```
 
 Opaque type members of different instances are treated as different:
-```scala
+```scala sc:fail
+//{
+class Logarithms:
+
+  opaque type Logarithm = Double
+
+  def apply(d: Double): Logarithm = math.log(d)
+
+  def safe(d: Double): Option[Logarithm] =
+    if d > 0.0 then Some(math.log(d)) else None
+
+  def mul(x: Logarithm, y: Logarithm) = x + y
+//}
 val l1 = new Logarithms
 val l2 = new Logarithms
 val x = l1(1.5)

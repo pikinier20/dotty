@@ -123,5 +123,5 @@ object SnippetRenderer:
 
   def renderSnippetWithMessages(codeLines: Seq[String], messages: Seq[SnippetCompilerMessage]): String =
     val transformedLines = wrapCodeLines.andThen(addCompileMessages(messages)).apply(codeLines).map(_.toHTML)
-    val codeHTML = s"""<code class="language-scala">${transformedLines.mkString("")}<pre></pre></code>"""
+    val codeHTML = s"""<code class="language-scala">${transformedLines.mkString("")}</code>"""
     s"""<div class="snippet"><pre>$codeHTML</pre></div>"""

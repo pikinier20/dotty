@@ -9,6 +9,11 @@ When pattern matching there are two situations where a runtime type test must be
 The first case is an explicit type test using the ascription pattern notation.
 
 ```scala
+//{
+type X
+type Y <: X
+val x: X
+//}
 (x: X) match
   case y: Y =>
 ```
@@ -16,11 +21,16 @@ The first case is an explicit type test using the ascription pattern notation.
 The second case is when an extractor takes an argument that is not a subtype of the scrutinee type.
 
 ```scala
+//{
+type X
+type Y <: X
+val x: X
+//}
 (x: X) match
   case y @ Y(n) =>
 
 object Y:
-  def unapply(x: Y): Some[Int] = ...
+  def unapply(x: Y): Some[Int] = ???
 ```
 
 In both cases, a class test will be performed at runtime.
@@ -28,7 +38,7 @@ But when the type test is on an abstract type (type parameter or type member), t
 
 A `TypeTest` can be provided to make this test possible.
 
-```scala
+```scala sc:nocompile
 package scala.reflect
 
 trait TypeTest[-S, T]:
@@ -39,7 +49,13 @@ It provides an extractor that returns its argument typed as a `T` if the argumen
 It can be used to encode a type test.
 
 ```scala
-def f[X, Y](x: X)(using tt: TypeTest[X, Y]): Option[Y] = x match
+//{
+import scala.reflect.TypeTest
+//}
+type Y
+object Y:
+  def unapply(x: Y): Some[Int] = ???
+def f[X](x: X)(using tt: TypeTest[X, Y]): Option[Y] = x match
   case tt(x @ Y(1)) => Some(x)
   case tt(x) => Some(x)
   case _ => None
@@ -50,7 +66,13 @@ This means that `x: Y` is transformed to `tt(x)` and `x @ Y(_)` to `tt(x @ Y(_))
 The previous code is equivalent to
 
 ```scala
-def f[X, Y](x: X)(using TypeTest[X, Y]): Option[Y] = x match
+//{
+import scala.reflect.TypeTest
+//}
+type Y
+object Y:
+  def unapply(x: Y): Some[Int] = ???
+def f[X](x: X)(using TypeTest[X, Y]): Option[Y] = x match
   case x @ Y(1) => Some(x)
   case x: Y => Some(x)
   case _ => None
@@ -59,10 +81,16 @@ def f[X, Y](x: X)(using TypeTest[X, Y]): Option[Y] = x match
 We could create a type test at call site where the type test can be performed with runtime class tests directly as follows
 
 ```scala
+//{
+import scala.reflect.TypeTest
+//}
+def f[X, Y](x: X)(using TypeTest[X, Y]): Option[Y] = x match
+  case x: Y => Some(x)
+  case _ => None
 val tt: TypeTest[Any, String] =
   new TypeTest[Any, String]:
     def unapply(s: Any): Option[s.type & String] = s match
-      case s: String => Some(s)
+      case s: (String & s.type) => Some(s)
       case _ => None
 
 f[AnyRef, String]("acb")(using tt)
@@ -71,9 +99,14 @@ f[AnyRef, String]("acb")(using tt)
 The compiler will synthesize a new instance of a type test if none is found in scope as:
 
 ```scala
+//{
+import scala.reflect.TypeTest
+type A
+type B
+//}
 new TypeTest[A, B]:
   def unapply(s: A): Option[s.type & B] = s match
-    case s: B => Some(s)
+    case s: (B & s.type) => Some(s)
     case _ => None
 ```
 
@@ -82,7 +115,7 @@ If the type tests cannot be done there will be an unchecked warning that will be
 The most common `TypeTest` instances are the ones that take any parameters (i.e. `TypeTest[Any, T]`).
 To make it possible to use such instances directly in context bounds we provide the alias
 
-```scala
+```scala sc:nocompile
 package scala.reflect
 
 type Typeable[T] = TypeTest[Any, T]
@@ -91,6 +124,9 @@ type Typeable[T] = TypeTest[Any, T]
 This alias can be used as
 
 ```scala
+//{
+import scala.reflect.Typeable
+//}
 def f[T: Typeable]: Boolean =
   "abc" match
     case x: T => true
@@ -111,9 +147,13 @@ Using `ClassTag` instances was unsound since classtags can check only the class 
 ## Example
 
 Given the following abstract definition of Peano numbers that provides two given instances of types `TypeTest[Nat, Zero]` and `TypeTest[Nat, Succ]`
+together with an implementation of Peano numbers based on type `Int`
+it is possible to write the following program
 
 ```scala
 import scala.reflect.*
+
+// Abstraction
 
 trait Peano:
   type Nat
@@ -131,11 +171,9 @@ trait Peano:
 
   given typeTestOfZero: TypeTest[Nat, Zero]
   given typeTestOfSucc: TypeTest[Nat, Succ]
-```
 
-together with an implementation of Peano numbers based on type `Int`
+// Implementation based on type Int
 
-```scala
 object PeanoInt extends Peano:
   type Nat  = Int
   type Zero = Int
@@ -156,12 +194,10 @@ object PeanoInt extends Peano:
   def typeTestOfSucc: TypeTest[Nat, Succ] = new:
     def unapply(x: Nat): Option[x.type & Succ] =
       if x > 0 then Some(x) else None
-```
 
-it is possible to write the following program
+// Program
 
-```scala
-@main def test =
+def test =
   import PeanoInt.*
 
   def divOpt(m: Nat, n: Nat): Option[(Nat, Nat)] =

@@ -25,7 +25,7 @@ class RemoteFile(url: String) extends AbstractFile:
 
 The checker will report:
 
-``` scala
+```scala sc:nocompile
 -- Warning: tests/init/neg/AbstractFile.scala:7:4 ------------------------------
 7 |	val localFile: String = s"${url.##}.tmp"  // error: usage of `localFile` before it's initialized
   |	    ^
@@ -48,7 +48,7 @@ object Trees:
 
 The checker will report:
 
-``` scala
+``` scala sc:nocompile
 -- Warning: tests/init/neg/trees.scala:5:14 ------------------------------------
 5 |  private var counter = 0  // error
   |              ^
@@ -75,7 +75,7 @@ class Child extends Parent:
 
 The checker reports:
 
-``` scala
+``` scala sc:nocompile
 -- Warning: tests/init/neg/features-high-order.scala:7:6 -----------------------
 7 |  val b = "hello"           // error
   |      ^
@@ -113,6 +113,9 @@ are initialized at the end of the primary constructor, except for the language
 feature below:
 
 ``` scala
+//{
+type T
+//}
 var x: T = _
 ```
 
@@ -140,11 +143,19 @@ field points to an initialized object may not later point to an
 object under initialization. As an example, the following code will be rejected:
 
 ``` scala
+//{
+class Context:
+  var reporter: Reporter = null
+  // ...
+class File(s: String):
+  def write(s: String) = ???
+  // ...
+//}
 trait Reporter:
   def report(msg: String): Unit
 
 class FileReporter(ctx: Context) extends Reporter:
-  ctx.typer.reporter = this                // ctx now reaches an uninitialized object
+  ctx.reporter = this                // ctx now reaches an uninitialized object
   val file: File = new File("report.txt")
   def report(msg: String) = file.write(msg)
 ```

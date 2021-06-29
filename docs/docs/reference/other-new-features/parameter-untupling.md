@@ -13,6 +13,9 @@ and you want to map `xs` to a list of `Int`s so that each pair of numbers is map
 their sum. Previously, the best way to do this was with a pattern-matching decomposition:
 
 ```scala
+//{
+val xs: List[(Int, Int)]
+//}
 xs map {
   case (x, y) => x + y
 }
@@ -22,6 +25,9 @@ While correct, this is also inconvenient and confusing, since the `case`
 suggests that the pattern match could fail. As a shorter and clearer alternative Scala 3 now allows
 
 ```scala
+//{
+val xs: List[(Int, Int)]
+//}
 xs.map {
   (x, y) => x + y
 }
@@ -30,6 +36,9 @@ xs.map {
 or, equivalently:
 
 ```scala
+//{
+val xs: List[(Int, Int)]
+//}
 xs.map(_ + _)
 ```
 

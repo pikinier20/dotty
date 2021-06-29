@@ -19,7 +19,14 @@ One potential issue with trait parameters is how to prevent
 ambiguities. For instance, you might try to extend `Greeting` twice,
 with different parameters.
 
-```scala
+```scala sc:fail
+//{
+trait Greeting(val name: String):
+  def msg = s"How are you, $name"
+
+class C extends Greeting("Bob"):
+  println(msg)
+//}
 class D extends C, Greeting("Bill") // error: parameter passed twice
 ```
 
@@ -35,13 +42,29 @@ because it violates the second rule of the following for trait parameters:
 Here's a trait extending the parameterized trait `Greeting`.
 
 ```scala
+//{
+trait Greeting(val name: String):
+  def msg = s"How are you, $name"
+
+class C extends Greeting("Bob"):
+  println(msg)
+//}
 trait FormalGreeting extends Greeting:
   override def msg = s"How do you do, $name"
 ```
 As is required, no arguments are passed to `Greeting`. However, this poses an issue
 when defining a class that extends `FormalGreeting`:
 
-```scala
+```scala sc:fail
+//{
+trait Greeting(val name: String):
+  def msg = s"How are you, $name"
+
+class C extends Greeting("Bob"):
+  println(msg)
+trait FormalGreeting extends Greeting:
+  override def msg = s"How do you do, $name"
+//}
 class E extends FormalGreeting // error: missing arguments for `Greeting`.
 ```
 
@@ -49,6 +72,15 @@ The correct way to write `E` is to extend both `Greeting` and
 `FormalGreeting` (in either order):
 
 ```scala
+//{
+trait Greeting(val name: String):
+  def msg = s"How are you, $name"
+
+class C extends Greeting("Bob"):
+  println(msg)
+trait FormalGreeting extends Greeting:
+  override def msg = s"How do you do, $name"
+//}
 class E extends Greeting("Bob"), FormalGreeting
 ```
 
@@ -74,7 +106,7 @@ class F(using iname: ImpliedName) extends ImpliedFormalGreeting
 ```
 
 The definition of `F` in the last line is implicitly expanded to
-```scala
+```scala sc:nocompile
 class F(using iname: ImpliedName) extends
   Object,
   ImpliedGreeting(using iname),
