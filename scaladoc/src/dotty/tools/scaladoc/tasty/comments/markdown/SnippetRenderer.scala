@@ -32,6 +32,13 @@ object SnippetRenderer:
       (begin, mid) = tmp.splitAt(startIdx)
     } yield f(begin, mid, end)
 
+  private def wrapImportedSection(snippetLines: Seq[SnippetLine]): Seq[SnippetLine] =
+    val mRes = cutBetweenSymbols("//{i", "//i}", snippetLines) {
+      case (begin, mid, end) =>
+        begin ++ mid.drop(1).dropRight(1).map(_.withClass("hideable")) ++ wrapHiddenSymbols(end)
+    }
+    mRes.getOrElse(snippetLines)
+
   private def wrapHiddenSymbols(snippetLines: Seq[SnippetLine]): Seq[SnippetLine] =
     val mRes = cutBetweenSymbols("//{", "//}", snippetLines) {
       case (begin, mid, end) =>
@@ -91,7 +98,8 @@ object SnippetRenderer:
     val snippetLines = codeLines.zipWithIndex.map {
       case (content, idx) => SnippetLine(content.escapeReservedTokens, idx)
     }
-    wrapHiddenSymbols
+    wrapImportedSection
+      .andThen(wrapHiddenSymbols)
       .andThen(wrapSingleLineComments)
       .andThen(wrapMultiLineComments)
       .apply(snippetLines)

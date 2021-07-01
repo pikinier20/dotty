@@ -147,20 +147,16 @@ We illustrate the rules with following examples:
 
   ==>
 
-  ```scala
+  ```scala sc-id:1
   class C[T] { def foo(): T | Null = null }
   ```
 
   Notice this is rule is sometimes too conservative, as witnessed by
 
-  ```scala sc:fail
-  //{
-  class C[T] { def foo(): T | Null = null }
-  type Bool
-  //}
+  ```scala sc:fail sc-compile-with:1
   class InScala:
-    val c: C[Bool] = ???  // C as above
-    val b: Bool = c.foo() // no longer typechecks, since foo now returns Bool | Null
+    val c: C[Boolean] = ???  // C as above
+    val b: Boolean = c.foo() // no longer typechecks, since foo now returns Bool | Null
   ```
 
 - We can reduce the number of redundant nullable types we need to add. Consider
@@ -172,8 +168,11 @@ We illustrate the rules with following examples:
 
   ==>
 
-  ```scala
+  ```scala sc-id:2
   abstract class Box[T] { def get(): T | Null }
+  ```
+
+  ```scala sc-compile-with:2
   abstract class BoxFactory[T] { def makeBox(): Box[T] | Null }
   ```
 
@@ -198,10 +197,7 @@ We illustrate the rules with following examples:
 
   ==>
 
-  ```scala
-  //{
-  abstract class Box[T] { def get(): T | Null }
-  //}
+  ```scala sc-compile-with:2
   abstract class BoxFactory[T]:
     def makeBox(): Box[T | Null] | Null
     def makeCrazyBoxes(): java.util.List[Box[java.util.List[T] | Null]] | Null
@@ -231,7 +227,7 @@ We illustrate the rules with following examples:
 
   ```scala
   //{
-  def getNewName(): String | Null = ???
+  def getNewName(): String = ???
   //}
   class Constants:
     val NAME: String = "name"
@@ -254,10 +250,7 @@ We illustrate the rules with following examples:
 
   ==>
 
-  ```scala
-  //{
-  abstract class Box[T] { def get(): T | Null }
-  //}
+  ```scala sc-compile-with:2
   abstract class C:
     val name: String
     def getNames(prefix: String | Null): java.util.List[String] // we still need to nullify the paramter types

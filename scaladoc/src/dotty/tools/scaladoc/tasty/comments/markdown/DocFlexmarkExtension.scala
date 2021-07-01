@@ -24,7 +24,7 @@ class DocLinkNode(
 case class ExtendedFencedCodeBlock(
   codeBlock: ast.FencedCodeBlock,
   compilationResult: Option[SnippetCompilationResult]
-) extends WikiNode(codeBlock.getChars, false, false, false, false)
+) extends BlankLine(codeBlock.getContentChars())
 
 class DocFlexmarkParser(resolveLink: String => DocLink) extends Parser.ParserExtension:
 

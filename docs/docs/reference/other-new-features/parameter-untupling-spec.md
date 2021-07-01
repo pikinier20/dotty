@@ -6,27 +6,21 @@ title: "Parameter Untupling - More Details"
 ## Motivation
 Say you have a list of pairs
 
-```scala
+```scala sc-id:1
 val xs: List[(Int, Int)]
 ```
 
 and you want to map `xs` to a list of `Int`s so that each pair of numbers is mapped to their sum.
 Previously, the best way to do this was with a pattern-matching decomposition:
 
-```scala
-//{
-val xs: List[(Int, Int)]
-//}
+```scala sc-compile-with:1
 xs.map {
   case (x, y) => x + y
 }
 ```
 While correct, this is inconvenient. Instead, we propose to write it the following way:
 
-```scala
-//{
-val xs: List[(Int, Int)]
-//}
+```scala sc-compile-with:1
 xs.map {
   (x, y) => x + y
 }
@@ -34,10 +28,7 @@ xs.map {
 
 or, equivalently:
 
-```scala
-//{
-val xs: List[(Int, Int)]
-//}
+```scala sc-compile-with:1
 xs.map(_ + _)
 ```
 

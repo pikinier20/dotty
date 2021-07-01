@@ -8,10 +8,12 @@ function application, without needing to write `new`.
 
 Scala 3 generalizes this scheme to all concrete classes. Example:
 
-```scala
+```scala sc-id:1
 class MyStringBuilder(s: String):
   def this() = this("")
+```
 
+```scala sc-compile-with:1
 MyStringBuilder("abc")  // old: new MyStringBuilder("abc")
 MyStringBuilder()       // old: new MyStringBuilder()
 ```
@@ -19,11 +21,7 @@ MyStringBuilder()       // old: new MyStringBuilder()
 This works since a companion object with two `apply` methods
 is generated together with the class. The object looks like this:
 
-```scala
-//{
-class MyStringBuilder(s: String):
-  def this() = this("")
-//}
+```scala sc-compile-with:1
 object MyStringBuilder:
   inline def apply(s: String): MyStringBuilder = new MyStringBuilder(s)
   inline def apply(): MyStringBuilder = new MyStringBuilder()

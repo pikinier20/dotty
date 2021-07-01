@@ -5,7 +5,7 @@ title: "Trait Parameters"
 
 Scala 3 allows traits to have parameters, just like classes have parameters.
 
-```scala
+```scala sc-id:1
 trait Greeting(val name: String):
   def msg = s"How are you, $name"
 
@@ -19,14 +19,7 @@ One potential issue with trait parameters is how to prevent
 ambiguities. For instance, you might try to extend `Greeting` twice,
 with different parameters.
 
-```scala sc:fail
-//{
-trait Greeting(val name: String):
-  def msg = s"How are you, $name"
-
-class C extends Greeting("Bob"):
-  println(msg)
-//}
+```scala sc:fail sc-compile-with:1
 class D extends C, Greeting("Bill") // error: parameter passed twice
 ```
 
@@ -41,46 +34,21 @@ because it violates the second rule of the following for trait parameters:
 
 Here's a trait extending the parameterized trait `Greeting`.
 
-```scala
-//{
-trait Greeting(val name: String):
-  def msg = s"How are you, $name"
-
-class C extends Greeting("Bob"):
-  println(msg)
-//}
+```scala sc-compile-with:1 sc-id:2
 trait FormalGreeting extends Greeting:
   override def msg = s"How do you do, $name"
 ```
 As is required, no arguments are passed to `Greeting`. However, this poses an issue
 when defining a class that extends `FormalGreeting`:
 
-```scala sc:fail
-//{
-trait Greeting(val name: String):
-  def msg = s"How are you, $name"
-
-class C extends Greeting("Bob"):
-  println(msg)
-trait FormalGreeting extends Greeting:
-  override def msg = s"How do you do, $name"
-//}
+```scala sc:fail sc-compile-with:2
 class E extends FormalGreeting // error: missing arguments for `Greeting`.
 ```
 
 The correct way to write `E` is to extend both `Greeting` and
 `FormalGreeting` (in either order):
 
-```scala
-//{
-trait Greeting(val name: String):
-  def msg = s"How are you, $name"
-
-class C extends Greeting("Bob"):
-  println(msg)
-trait FormalGreeting extends Greeting:
-  override def msg = s"How do you do, $name"
-//}
+```scala sc-compile-with:2
 class E extends Greeting("Bob"), FormalGreeting
 ```
 
