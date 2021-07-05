@@ -119,7 +119,7 @@ is guaranteed to succeed at run-time since `Any` and `Matchable` both erase to
 
 For instance, consider the definitions
 
-```scala sc-id:1
+```scala sc-name:Meter.scala
 opaque type Meter = Double
 def Meter(x: Double) = x
 
@@ -129,13 +129,13 @@ def Second(x: Double) = x
 
 Here, universal `equals` will return true for
 
-```scala sc-compile-with:1
+```scala sc-compile-with:Meter.scala
 Meter(10).equals(Second(10))
 ```
 
 even though this is clearly false mathematically. With [multiversal equality](../contextual/multiversal-equality.md) one can mitigate that problem somewhat by turning
 
-```scala sc-compile-with:1
+```scala sc-compile-with:Meter.scala
 Meter(10) == Second(10)
 ```
 

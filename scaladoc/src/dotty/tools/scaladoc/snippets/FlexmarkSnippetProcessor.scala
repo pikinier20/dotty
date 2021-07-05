@@ -17,14 +17,6 @@ object FlexmarkSnippetProcessor:
       case fcb: mda.FencedCodeBlock => fcb
     }.toList
 
-    val nodesMap = nodes.flatMap { node =>
-      val info = node.getInfo.toString.split(" ")
-      info
-        .find(_.startsWith("sc-id:"))
-        .map(_.stripPrefix("sc-id:"))
-        .fold(Seq())(id => Seq((id, node)))
-    }
-
     nodes.foldLeft[Map[String, String]](Map()) { (snippetMap, node) =>
       val lineOffset = node.getStartLineNumber
       val info = node.getInfo.toString.split(" ")
@@ -43,8 +35,8 @@ object FlexmarkSnippetProcessor:
               None
           })
         val id = info
-          .find(_.startsWith("sc-id:"))
-          .map(_.stripPrefix("sc-id:"))
+          .find(_.startsWith("sc-name:"))
+          .map(_.stripPrefix("sc-name:"))
 
         val snippetImports = info
           .find(_.startsWith("sc-compile-with:"))
@@ -73,13 +65,7 @@ object FlexmarkSnippetProcessor:
             content.add(s, 0)
             node.setContent(content)
 
-        val importedSection = if snippetImports.nonEmpty then
-          s"""|//{i
-              |$snippetImports
-              |//i}
-              |""".stripMargin
-        else ""
-        val fullSnippet = importedSection + snippet
+        val fullSnippet = Seq(snippetImports, snippet).mkString("\n").trim
         val snippetCompilationResult = cf(fullSnippet, lineOffset, argOverride) match {
           case result@Some(SnippetCompilationResult(wrapped, _, _, _)) if debug =>
             node.setContentString(wrapped.snippet)
@@ -89,10 +75,13 @@ object FlexmarkSnippetProcessor:
             result
         }
 
-        node.insertBefore(new ExtendedFencedCodeBlock(node, snippetCompilationResult))
+        node.insertBefore(new ExtendedFencedCodeBlock(id, node, snippetCompilationResult))
         node.unlink()
         id.fold(snippetMap)(id =>
-          val entry = (id, Seq(snippetImports, snippet).mkString("\n"))
+          val snippetAsImport = s"""|//{i:$id
+                                    |$snippet
+                                    |//i}""".stripMargin
+          val entry = (id, Seq(snippetImports, snippetAsImport).mkString("\n"))
           snippetMap + entry
         )
       } else snippetMap

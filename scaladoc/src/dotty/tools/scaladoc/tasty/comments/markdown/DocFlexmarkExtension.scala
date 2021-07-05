@@ -22,6 +22,7 @@ class DocLinkNode(
 ) extends WikiNode(seq, false, false, false, false)
 
 case class ExtendedFencedCodeBlock(
+  name: Option[String],
   codeBlock: ast.FencedCodeBlock,
   compilationResult: Option[SnippetCompilationResult]
 ) extends BlankLine(codeBlock.getContentChars())

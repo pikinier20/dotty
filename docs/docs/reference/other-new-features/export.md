@@ -163,19 +163,19 @@ ImportSelectors   ::=  NamedSelector [‘,’ ImportSelectors]
 Export clauses raise questions about the order of elaboration during type checking.
 Consider the following example:
 
-```scala sc-id:1
+```scala sc-name:Base.scala
 class B { val c: Int = ??? }
 object a { val b = new B }
 ```
 
-```scala sc-compile-with:1
+```scala sc-compile-with:Base.scala
 export a.*
 export b.*
 ```
 
 Is the `export b.*` clause legal? If yes, what does it export? Is it equivalent to `export a.b.*`? What about if we swap the last two clauses?
 
-```scala sc:fail sc-compile-with:1
+```scala sc:fail sc-compile-with:Base.scala
 export b.*
 export a.*
 ```

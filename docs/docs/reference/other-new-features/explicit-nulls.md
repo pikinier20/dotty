@@ -147,13 +147,13 @@ We illustrate the rules with following examples:
 
   ==>
 
-  ```scala sc-id:1
+  ```scala sc-name:C.scala
   class C[T] { def foo(): T | Null = null }
   ```
 
   Notice this is rule is sometimes too conservative, as witnessed by
 
-  ```scala sc:fail sc-compile-with:1
+  ```scala sc:fail sc-compile-with:C.scala
   class InScala:
     val c: C[Boolean] = ???  // C as above
     val b: Boolean = c.foo() // no longer typechecks, since foo now returns Bool | Null
@@ -168,11 +168,11 @@ We illustrate the rules with following examples:
 
   ==>
 
-  ```scala sc-id:2
+  ```scala sc-name:Box.scala
   abstract class Box[T] { def get(): T | Null }
   ```
 
-  ```scala sc-compile-with:2
+  ```scala sc-compile-with:Box.scala
   abstract class BoxFactory[T] { def makeBox(): Box[T] | Null }
   ```
 
@@ -197,7 +197,7 @@ We illustrate the rules with following examples:
 
   ==>
 
-  ```scala sc-compile-with:2
+  ```scala sc-compile-with:Box.scala
   abstract class BoxFactory[T]:
     def makeBox(): Box[T | Null] | Null
     def makeCrazyBoxes(): java.util.List[Box[java.util.List[T] | Null]] | Null
@@ -250,7 +250,7 @@ We illustrate the rules with following examples:
 
   ==>
 
-  ```scala sc-compile-with:2
+  ```scala sc-compile-with:Box.scala
   abstract class C:
     val name: String
     def getNames(prefix: String | Null): java.util.List[String] // we still need to nullify the paramter types

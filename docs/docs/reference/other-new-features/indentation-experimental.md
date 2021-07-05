@@ -92,14 +92,14 @@ IndentedArgument ::=  indent (CaseClauses | Block) outdent
 Note that a lambda argument must have the `=>` at the end of a line for braces
 to be optional. For instance, the following would also be incorrect:
 
-```scala sc-id:1
+```scala sc-name:Base.scala
 val xs: Seq[Int]
 ```
 
-```scala sc:fail sc-compile-with:1
+```scala sc:fail sc-compile-with:Base.scala
   xs.map x => x + 1   // error: braces or parentheses are required
 ```
 The lambda has to be enclosed in braces or parentheses:
-```scala sc-compile-with:1
+```scala sc-compile-with:Base.scala
   xs.map(x => x + 1)  // ok
 ```

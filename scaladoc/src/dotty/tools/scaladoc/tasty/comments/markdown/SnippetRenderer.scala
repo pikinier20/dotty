@@ -1,17 +1,28 @@
-package dotty.tools.scaladoc.tasty.comments.markdown
+package dotty.tools.scaladoc
+package tasty.comments.markdown
 
 import com.vladsch.flexmark.html._
+import util.HTML._
 
 import dotty.tools.scaladoc.snippets._
 import dotty.tools.scaladoc.util.HTML._
 
-case class SnippetLine(content: String, lineNo: Int, classes: Set[String] = Set.empty, messages: Seq[String] = Seq.empty):
+case class SnippetLine(content: String, lineNo: Int, classes: Set[String] = Set.empty, messages: Seq[String] = Seq.empty, attributes: Map[String, String] = Map.empty):
   def withClass(cls: String) = this.copy(classes = classes + cls)
+  def withAttribute(name: String, value: String) = this.copy(attributes = attributes.updated(name, value))
+  private def attributesToString: String = attributes.updated("id", lineNo).map((key, value) => s"""$key="$value"""").mkString(" ")
   def toHTML =
     val label = if messages.nonEmpty then s"""label="${messages.map(_.escapeReservedTokens).mkString("\n")}"""" else ""
-    s"""<span id="$lineNo" class="${classes.mkString(" ")}" $label>$content</span>"""
+    s"""<span $attributesToString class="${classes.mkString(" ")}" $label>$content</span>"""
 
 object SnippetRenderer:
+  val hiddenStartSymbol = "//{"
+  val hiddenEndSymbol = "//}"
+
+  val importedStartSymbol = "//{i"
+  val importedEndSymbol = "//i}"
+  val importedRegex = """\/\/\{i:(.*)""".r
+
   private def compileMessageCSSClass(msg: SnippetCompilerMessage) = msg.level match
     case MessageLevel.Info => "snippet-info"
     case MessageLevel.Warning => "snippet-warn"
@@ -33,14 +44,15 @@ object SnippetRenderer:
     } yield f(begin, mid, end)
 
   private def wrapImportedSection(snippetLines: Seq[SnippetLine]): Seq[SnippetLine] =
-    val mRes = cutBetweenSymbols("//{i", "//i}", snippetLines) {
+    val mRes = cutBetweenSymbols(importedStartSymbol, importedEndSymbol, snippetLines) {
       case (begin, mid, end) =>
-        begin ++ mid.drop(1).dropRight(1).map(_.withClass("hideable")) ++ wrapHiddenSymbols(end)
+        val name = importedRegex.findFirstMatchIn(mid.head.content).fold("")(_.group(1))
+        begin ++ mid.drop(1).dropRight(1).map(_.withClass("hideable").withClass("include").withAttribute("name", name)) ++ wrapImportedSection(end)
     }
     mRes.getOrElse(snippetLines)
 
   private def wrapHiddenSymbols(snippetLines: Seq[SnippetLine]): Seq[SnippetLine] =
-    val mRes = cutBetweenSymbols("//{", "//}", snippetLines) {
+    val mRes = cutBetweenSymbols(hiddenStartSymbol, hiddenEndSymbol, snippetLines) {
       case (begin, mid, end) =>
         begin ++ mid.drop(1).dropRight(1).map(_.withClass("hideable")) ++ wrapHiddenSymbols(end)
     }
@@ -129,7 +141,11 @@ object SnippetRenderer:
           .mkString("<br>")
         s"""<hr>$content"""
 
-  def renderSnippetWithMessages(codeLines: Seq[String], messages: Seq[SnippetCompilerMessage]): String =
+  private def snippetLabel(name: String): String = div(cls := "snippet-meta")(
+    div(cls := "snippet-label")(name)
+  ).toString
+
+  def renderSnippetWithMessages(snippetName: Option[String], codeLines: Seq[String], messages: Seq[SnippetCompilerMessage]): String =
     val transformedLines = wrapCodeLines.andThen(addCompileMessages(messages)).apply(codeLines).map(_.toHTML)
     val codeHTML = s"""<code class="language-scala">${transformedLines.mkString("")}</code>"""
-    s"""<div class="snippet"><pre>$codeHTML</pre></div>"""
+    s"""<div class="snippet"><div class="buttons"></div><pre>$codeHTML</pre>${snippetName.fold("")(snippetLabel(_))}</div>"""
